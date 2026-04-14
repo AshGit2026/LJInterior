@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Customer interior design reservation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "spaceType": { "type": "string", "enum": ["Residential", "Commercial", "Office", "Other"] },
+        "styles": { "type": "array", "items": { "type": "string" } },
+        "area": { "type": "number" },
+        "areaUnit": { "type": "string", "enum": ["평", "㎡"] },
+        "preferredDate": { "type": "string" },
+        "additionalRequests": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Consulting", "Preparing", "In Progress", "Completed"] },
+        "adminNotes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "userEmail", "spaceType", "status", "createdAt"]
+    },
+    "PortfolioItem": {
+      "title": "PortfolioItem",
+      "description": "Interior design portfolio project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["Residential", "Commercial", "Office", "Other"] },
+        "description": { "type": "string" },
+        "beforeImage": { "type": "string" },
+        "afterImage": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "afterImage"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Reservation records"
+    },
+    "/portfolio/{itemId}": {
+      "schema": "PortfolioItem",
+      "description": "Portfolio projects"
+    }
+  }
+}
