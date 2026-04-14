@@ -54,35 +54,42 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt']) &&
-             data.uid is string && data.uid.size() > 0 &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
              data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.email.size() < 256 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1024)) &&
              data.role in ['user', 'admin'] &&
              data.createdAt is timestamp;
     }
 
     function isValidReservation(data) {
       return data.keys().hasAll(['userId', 'userName', 'userEmail', 'spaceType', 'status', 'createdAt']) &&
-             data.userId is string &&
-             data.userName is string && data.userName.size() < 100 &&
+             data.userId is string && data.userId.size() < 128 &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
              data.userEmail is string && data.userEmail.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.userEmail.size() < 256 &&
              data.spaceType in ['Residential', 'Commercial', 'Office', 'Other'] &&
              data.status in ['Pending', 'Consulting', 'Preparing', 'In Progress', 'Completed'] &&
              data.createdAt is timestamp &&
-             (!('styles' in data) || data.styles is list) &&
+             (!('userPhone' in data) || (data.userPhone is string && data.userPhone.size() < 20)) &&
+             (!('styles' in data) || (data.styles is list && data.styles.size() < 20)) &&
              (!('area' in data) || data.area is number) &&
              (!('areaUnit' in data) || data.areaUnit in ['평', '㎡']) &&
-             (!('adminNotes' in data) || data.adminNotes is string);
+             (!('additionalRequests' in data) || (data.additionalRequests is string && data.additionalRequests.size() < 2000)) &&
+             (!('adminNotes' in data) || (data.adminNotes is string && data.adminNotes.size() < 5000));
     }
 
     function isValidPortfolio(data) {
       return data.keys().hasAll(['title', 'category', 'afterImage']) &&
-             data.title is string && data.title.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.category in ['Residential', 'Commercial', 'Office', 'Other'] &&
-             data.afterImage is string &&
-             (!('beforeImage' in data) || data.beforeImage is string) &&
-             (!('description' in data) || data.description is string) &&
-             (!('images' in data) || data.images is list) &&
-             (!('tags' in data) || data.tags is list);
+             data.afterImage is string && data.afterImage.size() < 1024 &&
+             (!('beforeImage' in data) || (data.beforeImage is string && data.beforeImage.size() < 1024)) &&
+             (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
+             (!('images' in data) || (data.images is list && data.images.size() < 20)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() < 20)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     // ===============================================================
