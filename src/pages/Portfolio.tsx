@@ -10,7 +10,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { db, storage, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Camera, Loader2, X, Plus } from 'lucide-react';
+import { Camera, Loader2, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const initialPortfolioData = [
   {
@@ -486,6 +486,22 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
     return images.filter(url => !!url);
   }, [item.afterImage, item.beforeImage, item.images]);
 
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentIndex = gallery.indexOf(activeImage);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + gallery.length) % gallery.length;
+    setActiveImage(gallery[prevIndex]);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentIndex = gallery.indexOf(activeImage);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % gallery.length;
+    setActiveImage(gallery[nextIndex]);
+  };
+
   return (
     <Dialog>
       <DialogTrigger render={children} nativeButton={false} />
@@ -494,13 +510,32 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
           {/* Image Section - Larger space */}
           <div className="w-full lg:w-[70%] bg-[#121212] flex items-center justify-center relative min-h-[500px]">
             {activeImage ? (
-              <img 
-                src={activeImage || undefined} 
-                alt={item.title} 
-                className="w-full h-full object-contain transition-all duration-500"
-                referrerPolicy="no-referrer"
-                key={activeImage}
-              />
+              <>
+                <img 
+                  src={activeImage || undefined} 
+                  alt={item.title} 
+                  className="w-full h-full object-contain transition-all duration-500"
+                  referrerPolicy="no-referrer"
+                  key={activeImage}
+                />
+                
+                {gallery.length > 1 && (
+                  <>
+                    <button 
+                      onClick={handlePrev}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/20 hover:bg-black/50 text-white transition-colors group z-20"
+                    >
+                      <ChevronLeft className="w-8 h-8 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                    <button 
+                      onClick={handleNext}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/20 hover:bg-black/50 text-white transition-colors group z-20"
+                    >
+                      <ChevronRight className="w-8 h-8 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  </>
+                )}
+              </>
             ) : (
               <div className="text-[#4A4A4A] text-[10px] font-bold uppercase tracking-widest">No Image Available</div>
             )}
