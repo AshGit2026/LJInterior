@@ -46,20 +46,28 @@ export default function Admin() {
     }
   };
 
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (!confirm('예약을 삭제하시겠습니까?')) return;
+    console.log('Attempting to delete reservation:', id);
+    setDeletingId(id);
     try {
       await deleteDoc(doc(db, 'reservations', id));
-      alert('삭제되었습니다.');
+      console.log('Deletion successful');
+      setShowDeleteConfirm(null);
     } catch (error) {
+      console.error('Delete Error:', error);
       handleFirestoreError(error, OperationType.DELETE, `reservations/${id}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleNoteUpdate = async (id: string, notes: string) => {
     try {
       await updateDoc(doc(db, 'reservations', id), { adminNotes: notes });
-      alert('메모가 저장되었습니다.');
+      window.alert('메모가 저장되었습니다.');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `reservations/${id}`);
     }
@@ -138,6 +146,7 @@ export default function Admin() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="font-bold text-[#1A1A1A]">접수일</TableHead>
+                      <TableHead className="font-bold text-[#1A1A1A]">예약번호</TableHead>
                       <TableHead className="font-bold text-[#1A1A1A]">고객명</TableHead>
                       <TableHead className="font-bold text-[#1A1A1A]">공간 유형</TableHead>
                       <TableHead className="font-bold text-[#1A1A1A]">평수</TableHead>
@@ -149,16 +158,17 @@ export default function Admin() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10">로딩 중...</TableCell>
+                        <TableCell colSpan={8} className="text-center py-10">로딩 중...</TableCell>
                       </TableRow>
                     ) : reservations.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10">예약 내역이 없습니다.</TableCell>
+                        <TableCell colSpan={8} className="text-center py-10">예약 내역이 없습니다.</TableCell>
                       </TableRow>
                     ) : (
                       reservations.map((res) => (
                         <TableRow key={res.id} className="hover:bg-[#FDFCFB]">
                           <TableCell>{res.createdAt?.toDate ? res.createdAt.toDate().toLocaleDateString() : '-'}</TableCell>
+                          <TableCell className="font-mono text-xs text-[#8B7E74]">{res.id}</TableCell>
                           <TableCell className="font-bold">{res.userName}</TableCell>
                           <TableCell>{res.spaceType}</TableCell>
                           <TableCell>{res.area}{res.areaUnit || '평'}</TableCell>
@@ -182,11 +192,11 @@ export default function Admin() {
                           </TableCell>
                           <TableCell className="text-right flex justify-end gap-2">
                             <Dialog>
-                              <DialogTrigger asChild>
+                              <DialogTrigger render={
                                 <Button variant="outline" size="sm" className="rounded-none text-xs font-bold uppercase tracking-widest">
                                   View
                                 </Button>
-                              </DialogTrigger>
+                              } nativeButton={true} />
                               <DialogContent className="rounded-none border-[#E5E1DA] max-w-2xl">
                                 <DialogHeader>
                                   <DialogTitle className="text-2xl font-bold tracking-tight">예약 상세 정보</DialogTitle>
@@ -224,14 +234,42 @@ export default function Admin() {
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDelete(res.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-none text-xs font-bold uppercase tracking-widest"
-                            >
-                              Delete
-                            </Button>
+
+                            <Dialog open={showDeleteConfirm === res.id} onOpenChange={(open) => !open && setShowDeleteConfirm(null)}>
+                              <DialogTrigger render={
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  disabled={deletingId === res.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowDeleteConfirm(res.id);
+                                  }}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-none text-xs font-bold uppercase tracking-widest"
+                                >
+                                  {deletingId === res.id ? '...' : 'Delete'}
+                                </Button>
+                              } nativeButton={true} />
+                              <DialogContent className="rounded-none border-[#E5E1DA] max-w-sm">
+                                <DialogHeader>
+                                  <DialogTitle className="text-xl font-bold tracking-tight">예약 데이터 삭제</DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4">
+                                  <p className="text-sm text-[#666666]">정말로 이 예약 내역을 삭제하시겠습니까?<br/>삭제된 데이터는 복구할 수 없습니다.</p>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="outline" className="rounded-none" onClick={() => setShowDeleteConfirm(null)}>취소</Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    className="rounded-none font-bold"
+                                    onClick={() => handleDelete(res.id)}
+                                    disabled={deletingId === res.id}
+                                  >
+                                    {deletingId === res.id ? '삭제 중...' : '데이터 삭제'}
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
                           </TableCell>
                         </TableRow>
                       ))

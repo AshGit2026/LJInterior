@@ -31,6 +31,14 @@ export default function Reservation() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!user) {
+      alert('홈페이지 상담 신청은 로그인 한 경우만 신청이 가능합니다.');
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   const [formData, setFormData] = React.useState({
     spaceType: '' as SpaceType | '',
     selectedStyles: [] as StyleType[],
@@ -42,6 +50,8 @@ export default function Reservation() {
     additionalRequests: '',
     agreed: false
   });
+
+  if (!user) return null;
 
   const handleStyleToggle = (style: StyleType) => {
     setFormData(prev => ({
@@ -124,6 +134,7 @@ export default function Reservation() {
                   <SelectItem value="Residential">주거 공간 (Residential)</SelectItem>
                   <SelectItem value="Commercial">상업 공간 (Commercial)</SelectItem>
                   <SelectItem value="Office">사무 공간 (Office)</SelectItem>
+                  <SelectItem value="Other">그외 (Other)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Application user profile",
+      "description": "User profile information",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -12,17 +12,16 @@
         "role": { "type": "string", "enum": ["user", "admin"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "email", "role"]
+      "required": ["uid", "email", "role", "createdAt"]
     },
     "Reservation": {
       "title": "Reservation",
-      "description": "Customer interior design reservation",
+      "description": "Customer consultation reservation",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
         "userId": { "type": "string" },
         "userName": { "type": "string" },
-        "userEmail": { "type": "string" },
+        "userEmail": { "type": "string", "format": "email" },
         "userPhone": { "type": "string" },
         "spaceType": { "type": "string", "enum": ["Residential", "Commercial", "Office", "Other"] },
         "styles": { "type": "array", "items": { "type": "string" } },
@@ -37,11 +36,10 @@
       "required": ["userId", "userName", "userEmail", "spaceType", "status", "createdAt"]
     },
     "PortfolioItem": {
-      "title": "PortfolioItem",
-      "description": "Interior design portfolio project",
+      "title": "Portfolio Item",
+      "description": "Portfolio project details",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
         "title": { "type": "string" },
         "category": { "type": "string", "enum": ["Residential", "Commercial", "Office", "Other"] },
         "description": { "type": "string" },
@@ -61,11 +59,11 @@
     },
     "/reservations/{reservationId}": {
       "schema": "Reservation",
-      "description": "Reservation records"
+      "description": "Customer reservations"
     },
     "/portfolio/{itemId}": {
       "schema": "PortfolioItem",
-      "description": "Portfolio projects"
+      "description": "Portfolio work cases"
     }
   }
 }

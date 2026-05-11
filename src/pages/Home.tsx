@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, CheckCircle2, Paintbrush, Monitor } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Paintbrush, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
@@ -35,8 +35,8 @@ export default function Home() {
       <section className="relative h-[90vh] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop"
-            alt="Hero Interior"
+            src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2F1776168303675_KakaoTalk_20260414_204206399_05.jpg?alt=media&token=23f8d6aa-6c1a-4557-9055-f037aa92ebac"
+            alt="Modern Lounge Interior"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
@@ -73,7 +73,7 @@ export default function Home() {
           <div className="text-center mb-20">
             <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-[#8B7E74] mb-4">Why Choose Us</h2>
             <p className="text-4xl md:text-5xl font-bold tracking-tight text-[#1A1A1A]">
-              오차 없는 프리뷰, 실제와 같은 3D 렌더링
+              공간의 가치를 완성하는 퀄리티
             </p>
           </div>
 
@@ -83,11 +83,11 @@ export default function Home() {
               className="flex flex-col items-center text-center space-y-6"
             >
               <div className="w-20 h-20 bg-[#FDFCFB] border border-[#E5E1DA] flex items-center justify-center rounded-full">
-                <Monitor className="w-8 h-8 text-[#8B7E74]" />
+                <Building2 className="w-8 h-8 text-[#8B7E74]" />
               </div>
-              <h3 className="text-xl font-bold">정교한 3D 시안</h3>
+              <h3 className="text-xl font-bold">신축부터 리모델링까지</h3>
               <p className="text-[#666666] leading-relaxed">
-                빛의 흐름과 마감재의 질감까지 구현한 정교한 3D 시안을 시공 전에 제공합니다.
+                주거부터 상업 공간까지, 풍부한 시공 노하우를 바탕으로 건물의 수명을 연장하고 새로운 가치를 부여합니다.
               </p>
             </motion.div>
 
@@ -100,7 +100,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold">맞춤형 디자인</h3>
               <p className="text-[#666666] leading-relaxed">
-                고객의 라이프스타일과 취향을 분석하여 세상에 단 하나뿐인 공간을 설계합니다.
+                고객의 취향과 라이프스타일을 세밀하게 분석하여 기능성과 심미성이 공존하는 최적의 디자인을 제안합니다.
               </p>
             </motion.div>
 
@@ -154,7 +154,7 @@ export default function Home() {
                 >
                   <Link to="/portfolio">
                     <img
-                      src={item.afterImage}
+                      src={item.afterImage || undefined}
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       referrerPolicy="no-referrer"

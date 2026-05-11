@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const statusColors: Record<ReservationStatus, string> = {
   'Pending': 'bg-gray-100 text-gray-800',
@@ -46,13 +47,21 @@ export default function MyPage() {
     return () => unsubscribe();
   }, [user]);
 
+  const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = React.useState<string | null>(null);
+
   const handleCancel = async (id: string) => {
-    if (!confirm('예약을 취소하시겠습니까? 취소된 정보는 복구할 수 없습니다.')) return;
+    console.log('Attempting to cancel reservation:', id);
+    setCancellingId(id);
     try {
       await deleteDoc(doc(db, 'reservations', id));
-      alert('예약이 취소되었습니다.');
+      console.log('Cancellation successful');
+      setShowCancelConfirm(null);
     } catch (error) {
+      console.error('Cancel Error:', error);
       handleFirestoreError(error, OperationType.DELETE, `reservations/${id}`);
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -124,7 +133,7 @@ export default function MyPage() {
                   ) : (
                     reservations.map((res) => (
                       <TableRow key={res.id} className="cursor-pointer hover:bg-[#FDFCFB]">
-                        <TableCell className="font-medium text-xs">{res.id.substring(0, 8)}...</TableCell>
+                        <TableCell className="font-mono text-xs text-[#8B7E74]">{res.id}</TableCell>
                         <TableCell>{res.createdAt?.toDate ? res.createdAt.toDate().toLocaleDateString() : '-'}</TableCell>
                         <TableCell>{res.spaceType}</TableCell>
                         <TableCell>{res.area}{res.areaUnit || '평'}</TableCell>
@@ -133,16 +142,100 @@ export default function MyPage() {
                             {res.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex items-center justify-end gap-3">
+                          <Dialog>
+                            <DialogTrigger render={
+                              <Button variant="outline" size="sm" className="rounded-none text-[10px] font-bold uppercase tracking-widest h-auto py-1 px-3">
+                                상세 보기
+                              </Button>
+                            } nativeButton={true} />
+                            <DialogContent className="rounded-none border-[#E5E1DA] max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle className="text-2xl font-bold tracking-tight">예약 상세 정보</DialogTitle>
+                              </DialogHeader>
+                              <div className="grid grid-cols-2 gap-6 py-4">
+                                <div>
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">상태</h4>
+                                  <Badge className={`rounded-none font-bold uppercase text-[10px] tracking-widest border-none ${statusColors[res.status as ReservationStatus]}`}>
+                                    {res.status}
+                                  </Badge>
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">신청일</h4>
+                                  <p className="text-sm">{res.createdAt?.toDate ? res.createdAt.toDate().toLocaleString() : '-'}</p>
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">공간 유형</h4>
+                                  <p className="text-sm font-bold">{res.spaceType}</p>
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">면적</h4>
+                                  <p className="text-sm">{res.area}{res.areaUnit || '평'}</p>
+                                </div>
+                                <div className="col-span-2">
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">선호 스타일</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {res.styles?.map((style: string) => (
+                                      <Badge key={style} variant="outline" className="rounded-none border-[#E5E1DA] text-[#666666] font-normal">
+                                        {style}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-1">희망 상담일</h4>
+                                  <p className="text-sm">{res.preferredDate || '-'}</p>
+                                </div>
+                                <div className="col-span-2 border-t border-[#E5E1DA] pt-4">
+                                  <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-2">추가 요청사항</h4>
+                                  <p className="text-sm bg-[#FDFCFB] p-3 border border-[#E5E1DA] whitespace-pre-wrap">{res.additionalRequests || '없음'}</p>
+                                </div>
+                                {res.adminNotes && (
+                                  <div className="col-span-2 border-t border-[#E5E1DA] pt-4">
+                                    <h4 className="text-xs font-bold text-[#8B7E74] uppercase tracking-widest mb-2">관리자 답변</h4>
+                                    <p className="text-sm bg-blue-50/50 p-3 border border-blue-100 whitespace-pre-wrap italic">{res.adminNotes}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+
                           {res.status === 'Pending' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleCancel(res.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-0 h-auto font-bold text-[10px] uppercase tracking-widest"
-                            >
-                              취소하기
-                            </Button>
+                            <Dialog open={showCancelConfirm === res.id} onOpenChange={(open) => !open && setShowCancelConfirm(null)}>
+                              <DialogTrigger render={
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  disabled={cancellingId === res.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowCancelConfirm(res.id);
+                                  }}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-0 h-auto font-bold text-[10px] uppercase tracking-widest"
+                                >
+                                  {cancellingId === res.id ? '...' : '취소하기'}
+                                </Button>
+                              } nativeButton={true} />
+                              <DialogContent className="rounded-none border-[#E5E1DA] max-w-sm">
+                                <DialogHeader>
+                                  <DialogTitle className="text-xl font-bold tracking-tight">예약 취소 확인</DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4">
+                                  <p className="text-sm text-[#666666]">정말로 이 예약을 취소하시겠습니까?<br/>취소된 정보는 복구할 수 없습니다.</p>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="outline" className="rounded-none" onClick={() => setShowCancelConfirm(null)}>뒤로가기</Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    className="rounded-none font-bold"
+                                    onClick={() => handleCancel(res.id)}
+                                    disabled={cancellingId === res.id}
+                                  >
+                                    {cancellingId === res.id ? '처리 중...' : '예약 취소'}
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
                           )}
                         </TableCell>
                       </TableRow>

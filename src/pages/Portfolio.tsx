@@ -186,7 +186,7 @@ export default function Portfolio() {
                       <div className="relative aspect-[4/3] overflow-hidden bg-[#E5E1DA]">
                         {/* Before/After Overlay */}
                         <img
-                          src={item.afterImage}
+                          src={item.afterImage || undefined}
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           referrerPolicy="no-referrer"
@@ -199,7 +199,7 @@ export default function Portfolio() {
                           className="absolute inset-0 z-10"
                         >
                           <img
-                            src={item.beforeImage}
+                            src={item.beforeImage || undefined}
                             alt="Before"
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
@@ -310,9 +310,7 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+      <DialogTrigger render={children} nativeButton={true} />
       <DialogContent className="rounded-none border-[#E5E1DA] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-tight">포트폴리오 {item ? '수정' : '추가'}</DialogTitle>
@@ -354,7 +352,7 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
               <div className="relative aspect-video bg-[#FDFCFB] border border-dashed border-[#E5E1DA] flex items-center justify-center overflow-hidden group">
                 {formData.beforeImage ? (
                   <>
-                    <img src={formData.beforeImage} alt="Before" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={formData.beforeImage || undefined} alt="Before" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <label className="cursor-pointer p-2 bg-white text-black rounded-full">
                         <Camera className="w-5 h-5" />
@@ -384,7 +382,7 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
               <div className="relative aspect-video bg-[#FDFCFB] border border-dashed border-[#E5E1DA] flex items-center justify-center overflow-hidden group">
                 {formData.afterImage ? (
                   <>
-                    <img src={formData.afterImage} alt="After" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={formData.afterImage || undefined} alt="After" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <label className="cursor-pointer p-2 bg-white text-black rounded-full">
                         <Camera className="w-5 h-5" />
@@ -415,7 +413,7 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {formData.images?.map((url: string, index: number) => (
                 <div key={index} className="relative aspect-square bg-[#FDFCFB] border border-[#E5E1DA] group overflow-hidden">
-                  <img src={url} alt={`Gallery ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={url || undefined} alt={`Gallery ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   <button 
                     onClick={() => removeGalleryImage(index)}
                     className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -471,16 +469,14 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+      <DialogTrigger render={children} nativeButton={false} />
       <DialogContent className="rounded-none border-[#E5E1DA] max-w-[95vw] w-full md:max-w-7xl max-h-[95vh] overflow-y-auto p-0">
         <div className="flex flex-col lg:flex-row h-full min-h-[80vh]">
           {/* Image Section - Larger space */}
           <div className="w-full lg:w-[70%] bg-[#121212] flex items-center justify-center relative min-h-[500px]">
             {activeImage ? (
               <img 
-                src={activeImage} 
+                src={activeImage || undefined} 
                 alt={item.title} 
                 className="w-full h-full object-contain transition-all duration-500"
                 referrerPolicy="no-referrer"
@@ -518,7 +514,7 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
                         onClick={() => setActiveImage(url)}
                         className={`aspect-square border-2 transition-all overflow-hidden bg-[#FDFCFB] relative group ${activeImage === url ? 'border-[#8B7E74]' : 'border-transparent opacity-40 hover:opacity-100'}`}
                       >
-                        <img src={url} alt={`Thumb ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={url || undefined} alt={`Thumb ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         {url === item.beforeImage && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="text-[8px] text-white font-bold uppercase">Before</span>

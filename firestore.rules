@@ -48,8 +48,9 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == "gjtnlfnl@gmail.com");
+        (request.auth.token.email == "gjtnlfnl@gmail.com" || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
     function isValidUser(data) {
@@ -106,13 +107,15 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
       allow create: if isAuthenticated() && isValidReservation(request.resource.data) && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'Pending';
-      allow update: if isAdmin() && isValidReservation(request.resource.data);
-      allow delete: if isAdmin();
+      allow update: if (isAdmin() && isValidReservation(request.resource.data)) || 
+                     (isOwner(resource.data.userId) && isValidReservation(request.resource.data) && request.resource.data.status == 'Pending' && resource.data.status == 'Pending');
+      allow delete: if isAdmin() || (isOwner(resource.data.userId) && resource.data.status == 'Pending');
     }
 
     match /portfolio/{itemId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidPortfolio(request.resource.data);
+      allow create, update: if isAdmin() && isValidPortfolio(request.resource.data);
+      allow delete: if isAdmin();
     }
   }
 }

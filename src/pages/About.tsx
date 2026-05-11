@@ -65,8 +65,8 @@ export default function About() {
                 desc: '가장 본질적인 것에 집중합니다. 화려함보다는 공간의 목적과 사용자의 편의를 최우선으로 생각합니다.'
               },
               {
-                title: 'Innovation',
-                desc: '최신 3D 렌더링 기술과 스마트 홈 솔루션을 결합하여 미래지향적인 공간을 제안합니다.'
+                title: 'Detail',
+                desc: '보이지 않는 곳까지 세심하게 살핍니다. 작은 차이가 만드는 완벽한 완성도를 위해 타협하지 않고 시공합니다.'
               },
               {
                 title: 'Sustainability',
