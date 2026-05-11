@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot, addDoc, updateDoc, serverTimestamp, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, doc, setDoc, getDoc, collection, query, where, onSnapshot, addDoc, updateDoc, serverTimestamp, getDocFromServer, getDocs, terminate, clearIndexedDbPersistence, orderBy, limit } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache()
+}, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -77,27 +79,57 @@ export const signInWithGoogle = async () => {
     
     // Create/Update user profile in Firestore
     const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
+    let userSnap;
+    try {
+      userSnap = await getDoc(userRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+    }
     
     const isAdmin = user.email === 'gjtnlfnl@gmail.com';
-    if (!userSnap.exists()) {
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        role: isAdmin ? 'admin' : 'user',
-        createdAt: serverTimestamp()
-      });
-    } else if (isAdmin && userSnap.data().role !== 'admin') {
+    if (userSnap && !userSnap.exists()) {
+      try {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: isAdmin ? 'admin' : 'user',
+          createdAt: serverTimestamp()
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+      }
+    } else if (isAdmin && userSnap && userSnap.data().role !== 'admin') {
       // Force update role to admin if it's the designated admin email but role is not admin
-      await updateDoc(userRef, { role: 'admin' });
+      try {
+        await updateDoc(userRef, { role: 'admin' });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
     }
     return user;
   } catch (error) {
+    if (error instanceof Error && error.message.includes('{"error"')) {
+      throw error; // Re-throw structured firestore error
+    }
     console.error('Login Error:', error);
     throw error;
   }
 };
 
-export const logout = () => signOut(auth);
+export const logout = async () => {
+  try {
+    await signOut(auth);
+    // Terminate and clear cache for security as requested
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+    // Reload to re-initialize everything fresh
+    window.location.href = '/';
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Fallback if full clear fails
+    await signOut(auth);
+    window.location.href = '/';
+  }
+};

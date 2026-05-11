@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SpaceType, StyleType } from '@/types';
 import { useAuth } from '@/components/AuthProvider';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
-import { collection, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, setDoc, doc, serverTimestamp, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 
 const generateReservationId = () => {
   const now = new Date();
@@ -88,8 +88,36 @@ export default function Reservation() {
     }
 
     setIsSubmitting(true);
+    const reservationId = generateReservationId();
     try {
-      const reservationId = generateReservationId();
+      // 1. Check Rate Limit (1 per 24 hours)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const qRate = query(
+        collection(db, 'reservations'),
+        where('userId', '==', user.uid),
+        where('createdAt', '>', Timestamp.fromDate(twentyFourHoursAgo)),
+        limit(1)
+      );
+      const rateSnap = await getDocs(qRate);
+      if (!rateSnap.empty) {
+        alert('이미 24시간 이내에 상담 신청 내역이 있습니다. 상담 예약은 24시간마다 1회만 가능합니다.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Check Active Limit (Max 3 non-completed)
+      const qActive = query(
+        collection(db, 'reservations'),
+        where('userId', '==', user.uid),
+        where('status', 'in', ['Pending', 'Consulting', 'Preparing', 'In Progress'])
+      );
+      const activeSnap = await getDocs(qActive);
+      if (activeSnap.size >= 3) {
+        alert('현재 진행 중인 상담이 3건 이상입니다. 기존 상담 완료 후 추가 신청이 가능합니다.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const reservationData = {
         userId: user.uid,
         userName: formData.name,
@@ -110,7 +138,7 @@ export default function Reservation() {
       alert('상담 예약이 신청되었습니다. 담당자가 곧 연락드리겠습니다.');
       navigate('/mypage');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'reservations');
+      handleFirestoreError(error, OperationType.WRITE, `reservations/${reservationId}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,6 +293,9 @@ export default function Reservation() {
             >
               {isSubmitting ? '신청 중...' : '상담 예약 신청하기'}
             </Button>
+            <p className="text-center text-xs text-[#8B7E74] mt-4 font-medium">
+              * 상담 예약은 24시간 내에 1회만 신청 가능하며, 완료되지 않은 상담이 3개를 초과할 수 없습니다.
+            </p>
           </form>
         </motion.div>
       </div>
