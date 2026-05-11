@@ -61,8 +61,8 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
               {
-                title: 'Authenticity',
-                desc: '가장 본질적인 것에 집중합니다. 화려함보다는 공간의 목적과 사용자의 편의를 최우선으로 생각합니다.'
+                title: 'Convenience',
+                desc: '거주자의 생활 패턴을 면밀히 분석하여 가장 편안하고 효율적인 공간을 만듭니다. 화려한 장식보다는 실용적인 편의성을 최우선으로 고려합니다.'
               },
               {
                 title: 'Detail',
