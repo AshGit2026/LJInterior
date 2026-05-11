@@ -193,6 +193,7 @@ export default function Layout({ children }: LayoutProps) {
               <h4 className="text-sm font-bold uppercase tracking-widest mb-6">Contact</h4>
               <ul className="space-y-4 text-[#A0A0A0]">
                 <li>T. 031-292-4589</li>
+                <li>F. 031-292-4588</li>
                 <li>E. lj_interior@naver.com</li>
                 <li>A. 경기도 화성시 효행구 봉담읍 분천길95번길 47-4</li>
               </ul>
