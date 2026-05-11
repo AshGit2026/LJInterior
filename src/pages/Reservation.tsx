@@ -27,6 +27,15 @@ const generateReservationId = () => {
 
 const styles: StyleType[] = ['Modern', 'Minimal', 'Wood & Natural', 'Industrial', 'High-end', 'Other'];
 
+const styleLabels: Record<StyleType, string> = {
+  'Modern': '모던 (Modern)',
+  'Minimal': '미니멀 (Minimal)',
+  'Wood & Natural': '우드 & 내추럴 (Wood & Natural)',
+  'Industrial': '인더스트리얼 (Industrial)',
+  'High-end': '하이엔드 (High-end)',
+  'Other': '기타 (Other)'
+};
+
 export default function Reservation() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -151,7 +160,7 @@ export default function Reservation() {
                       onCheckedChange={() => handleStyleToggle(style)}
                     />
                     <label htmlFor={style} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {style}
+                      {styleLabels[style]}
                     </label>
                   </div>
                 ))}
