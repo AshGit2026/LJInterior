@@ -235,18 +235,36 @@ export default function Portfolio() {
   );
 }
 
-function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item: any) => void, children: React.ReactNode }) {
+function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item: any) => Promise<void> | void, children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false);
   const [formData, setFormData] = React.useState({
-    title: item?.title || '',
-    category: item?.category || 'Residential',
-    description: item?.description || '',
-    beforeImage: item?.beforeImage || '',
-    afterImage: item?.afterImage || '',
-    images: item?.images || [] as string[],
-    tags: item?.tags || [] as string[],
-    id: item?.id
+    title: '',
+    category: 'Residential',
+    description: '',
+    beforeImage: '',
+    afterImage: '',
+    images: [] as string[],
+    tags: [] as string[],
+    id: undefined
   });
-  const [tagInput, setTagInput] = React.useState(item?.tags?.join(', ') || '');
+  const [tagInput, setTagInput] = React.useState('');
+
+  // Reset form when dialog opens or item changes
+  React.useEffect(() => {
+    if (open) {
+      setFormData({
+        title: item?.title || '',
+        category: item?.category || 'Residential',
+        description: item?.description || '',
+        beforeImage: item?.beforeImage || '',
+        afterImage: item?.afterImage || '',
+        images: item?.images ? [...item.images] : [],
+        tags: item?.tags ? [...item.tags] : [],
+        id: item?.id
+      });
+      setTagInput(item?.tags?.join(', ') || '');
+    }
+  }, [open, item]);
   const [uploadingBefore, setUploadingBefore] = React.useState(false);
   const [uploadingAfter, setUploadingAfter] = React.useState(false);
   const [uploadingGallery, setUploadingGallery] = React.useState(false);
@@ -303,13 +321,14 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const tags = tagInput.split(',').map(t => t.trim()).filter(t => t !== '');
-    onSave({ ...formData, tags });
+    await onSave({ ...formData, tags });
+    setOpen(false);
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={children} nativeButton={true} />
       <DialogContent className="rounded-none border-[#E5E1DA] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>

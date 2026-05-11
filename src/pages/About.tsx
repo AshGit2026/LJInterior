@@ -40,7 +40,7 @@ export default function About() {
               className="relative aspect-[4/5] bg-[#E5E1DA]"
             >
               <img
-                src="https://images.unsplash.com/photo-1595428774223-ef52624120d2?q=80&w=1000&auto=format&fit=crop"
+                src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2F1778481623050_KakaoTalk_20241021_105615934_05.jpg?alt=media&token=76e17054-d5d3-4ed6-af12-9aeb05987eef"
                 alt="Studio"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
