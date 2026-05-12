@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -39,21 +39,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribeProfile = onSnapshot(
-      doc(db, 'users', user.uid),
-      (doc) => {
-        if (doc.exists()) {
-          setUserProfile(doc.data());
-        }
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching user profile:', error);
-        setLoading(false);
-      }
-    );
+    let unsubscribeProfile: (() => void) | undefined;
 
-    return () => unsubscribeProfile();
+    try {
+      unsubscribeProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        (doc) => {
+          if (doc.exists()) {
+            setUserProfile(doc.data());
+          }
+          setLoading(false);
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+          setLoading(false);
+        }
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+      setLoading(false);
+    }
+
+    return () => {
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, [user]);
 
   const value = {

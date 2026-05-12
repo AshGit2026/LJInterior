@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight, CheckCircle2, Paintbrush, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase';
+import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
 export default function Home() {
@@ -17,16 +17,25 @@ export default function Home() {
       limit(2)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRecentPortfolio(data);
+    let unsubscribe: (() => void) | undefined;
+    
+    try {
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setRecentPortfolio(data);
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        setLoading(false);
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'portfolio');
       setLoading(false);
-    }, (error) => {
-      console.error('Home portfolio fetch error:', error);
-      setLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   return (

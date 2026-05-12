@@ -29,19 +29,28 @@ export default function Admin() {
     if (!isAdmin) return;
 
     const q = query(collection(db, 'reservations'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const resData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setReservations(resData);
-      setLoading(false);
-    }, (error) => {
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const resData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setReservations(resData);
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'reservations');
+        setLoading(false);
+      });
+    } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'reservations');
       setLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [isAdmin]);
 
   const handleStatusChange = async (id: string, newStatus: ReservationStatus) => {
@@ -302,6 +311,13 @@ function ImageOptimizationTool() {
     console.log('Optimize button clicked. Starting process...');
     e.preventDefault();
     e.stopPropagation();
+
+    const confirmed = window.confirm(
+      '모든 포트폴리오 이미지를 최적화하시겠습니까?\n' +
+      '이 작업은 다량의 이미지를 WebP로 변환하고 서버에 업로드하므로 시간이 걸릴 수 있으며 트래픽이 발생합니다.'
+    );
+    
+    if (!confirmed) return;
 
     setIsOptimizing(true);
     setProgress(0);

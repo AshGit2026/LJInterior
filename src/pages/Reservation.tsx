@@ -98,7 +98,16 @@ export default function Reservation() {
         where('createdAt', '>', Timestamp.fromDate(twentyFourHoursAgo)),
         limit(1)
       );
-      const rateSnap = await getDocs(qRate);
+      
+      let rateSnap;
+      try {
+        rateSnap = await getDocs(qRate);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'reservations');
+        setIsSubmitting(false);
+        return;
+      }
+
       if (!rateSnap.empty) {
         alert('이미 24시간 이내에 상담 신청 내역이 있습니다. 상담 예약은 24시간마다 1회만 가능합니다.');
         setIsSubmitting(false);
@@ -111,7 +120,16 @@ export default function Reservation() {
         where('userId', '==', user.uid),
         where('status', 'in', ['Pending', 'Consulting', 'Preparing', 'In Progress'])
       );
-      const activeSnap = await getDocs(qActive);
+      
+      let activeSnap;
+      try {
+        activeSnap = await getDocs(qActive);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'reservations');
+        setIsSubmitting(false);
+        return;
+      }
+
       if (activeSnap.size >= 3) {
         alert('현재 진행 중인 상담이 3건 이상입니다. 기존 상담 완료 후 추가 신청이 가능합니다.');
         setIsSubmitting(false);
@@ -134,11 +152,22 @@ export default function Reservation() {
         createdAt: serverTimestamp()
       };
 
-      await setDoc(doc(db, 'reservations', reservationId), reservationData);
+      try {
+        await setDoc(doc(db, 'reservations', reservationId), reservationData);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `reservations/${reservationId}`);
+        setIsSubmitting(false);
+        return;
+      }
+
       alert('상담 예약이 신청되었습니다. 담당자가 곧 연락드리겠습니다.');
       navigate('/mypage');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `reservations/${reservationId}`);
+      if (error instanceof Error && error.message.includes('{"error"')) {
+        // Already handled by handleFirestoreError
+      } else {
+        console.error('Reservation Error:', error);
+      }
     } finally {
       setIsSubmitting(false);
     }

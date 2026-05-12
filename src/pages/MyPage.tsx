@@ -32,19 +32,28 @@ export default function MyPage() {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const resData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setReservations(resData);
-      setLoading(false);
-    }, (error) => {
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const resData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setReservations(resData);
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'reservations');
+        setLoading(false);
+      });
+    } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'reservations');
       setLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [user]);
 
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);

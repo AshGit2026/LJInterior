@@ -41,8 +41,18 @@ interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Ignore benign errors during component unmount or hot reloading
+  if (errorMessage.includes('Firestore shutting down') || 
+      errorMessage.includes('terminated') || 
+      errorMessage.includes('cancelled')) {
+    console.warn(`Silenced Firestore ${operationType} error for ${path}: ${errorMessage}`);
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -59,7 +69,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
+  
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  // If the error is "Missing or insufficient permissions", we definitely want to throw 
+  // so the system can potentially notice it, but we should be careful not to crash 
+  // without reason. However, in this framework, throwing is often how we report to the user/system.
   throw new Error(JSON.stringify(errInfo));
 }
 

@@ -158,7 +158,8 @@ service cloud.firestore {
     }
 
     match /portfolio/{itemId} {
-      allow read: if isValidId(itemId);
+      allow get: if isValidId(itemId);
+      allow list: if true;
       allow create, update: if isValidId(itemId) && isAdmin() && isValidPortfolio(incoming());
       allow delete: if isValidId(itemId) && isAdmin();
     }

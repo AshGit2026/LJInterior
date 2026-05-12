@@ -22,15 +22,25 @@ export default function Portfolio() {
 
   React.useEffect(() => {
     const q = query(collection(db, 'portfolio'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPortfolioData(data);
+    let unsubscribe: (() => void) | undefined;
+    
+    try {
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPortfolioData(data);
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        setLoading(false);
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'portfolio');
       setLoading(false);
-    }, (error) => {
-      console.error('Portfolio fetch error:', error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    }
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const filteredData = filter === 'All' 
