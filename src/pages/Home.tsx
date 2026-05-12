@@ -35,10 +35,11 @@ export default function Home() {
       <section className="relative h-[90vh] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2F1776168303675_KakaoTalk_20260414_204206399_05.jpg?alt=media&token=23f8d6aa-6c1a-4557-9055-f037aa92ebac"
+            src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2FqVo0Wn5PewIyJ6w3DX9V%2Fopt_1778577735605_after.webp?alt=media&token=7d50ea25-7691-4145-8d0e-75d04d3080c7"
             alt="Modern Lounge Interior"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-black/40" />
         </div>
@@ -158,6 +159,7 @@ export default function Home() {
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
                     <div className="absolute bottom-10 left-10 text-white">

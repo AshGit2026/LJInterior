@@ -82,6 +82,7 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().size() >= 4 && data.keys().size() <= 6 &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
              data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
              data.email.size() < 256 &&
@@ -93,6 +94,7 @@ service cloud.firestore {
 
     function isValidReservation(data) {
       return data.keys().hasAll(['userId', 'userName', 'userEmail', 'spaceType', 'status', 'createdAt']) &&
+             data.keys().size() >= 6 && data.keys().size() <= 13 &&
              data.userId is string && data.userId.size() < 128 &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() <= 64 &&
              data.userEmail is string && data.userEmail.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
@@ -104,12 +106,14 @@ service cloud.firestore {
              (!('styles' in data) || (data.styles is list && data.styles.size() <= 20)) &&
              (!('area' in data) || data.area is number) &&
              (!('areaUnit' in data) || data.areaUnit in ['평', '㎡']) &&
+             (!('preferredDate' in data) || (data.preferredDate is string && data.preferredDate.size() <= 50)) &&
              (!('additionalRequests' in data) || (data.additionalRequests is string && data.additionalRequests.size() <= 2000)) &&
              (!('adminNotes' in data) || (data.adminNotes is string && data.adminNotes.size() <= 5000));
     }
 
     function isValidPortfolio(data) {
       return data.keys().hasAll(['title', 'category', 'afterImage']) &&
+             data.keys().size() >= 3 && data.keys().size() <= 9 &&
              data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
              data.category in ['Residential', 'Commercial', 'Office', 'Other'] &&
              data.afterImage is string && data.afterImage.size() <= 1024 &&
@@ -125,38 +129,38 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isVerified() && isOwner(userId) && isValidUser(incoming()) && 
+      allow create: if isValidId(userId) && isVerified() && isOwner(userId) && isValidUser(incoming()) && 
                     (incoming().role == 'user' || (incoming().role == 'admin' && incoming().email == "gjtnlfnl@gmail.com"));
-      allow update: if (isVerified() && (isOwner(userId) || isAdmin()) && isValidUser(incoming()) && 
+      allow update: if isValidId(userId) && (isVerified() && (isOwner(userId) || isAdmin()) && isValidUser(incoming()) && 
                         (isAdmin() || (incoming().role == existing().role && 
-                                       incoming().uid == existing().uid && 
-                                       incoming().email == existing().email)));
+                                        incoming().uid == existing().uid && 
+                                        incoming().email == existing().email)));
     }
 
     match /reservations/{reservationId} {
-      allow get: if isVerified() && (request.auth.uid == existing().userId || isAdmin());
+      allow get: if isValidId(reservationId) && isVerified() && (request.auth.uid == existing().userId || isAdmin());
       allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isVerified() && isValidReservation(incoming()) && 
+      allow create: if isValidId(reservationId) && isVerified() && isValidReservation(incoming()) && 
                     incoming().userId == request.auth.uid && 
                     incoming().status == 'Pending' &&
                     incoming().createdAt == request.time;
-      allow update: if (isAdmin() && isValidReservation(incoming())) || 
-                     (isVerified() && isOwner(existing().userId) && isValidReservation(incoming()) && 
-                      incoming().status == 'Pending' && existing().status == 'Pending' &&
-                      incoming().userId == existing().userId &&
-                      incoming().userName == existing().userName &&
-                      incoming().userEmail == existing().userEmail &&
-                      (!('userPhone' in incoming()) || (incoming().userPhone == existing().userPhone)) &&
-                      incoming().createdAt == existing().createdAt);
-      allow delete: if isAdmin() || (isVerified() && isOwner(existing().userId) && existing().status == 'Pending');
+      allow update: if isValidId(reservationId) && ((isAdmin() && isValidReservation(incoming())) || 
+                      (isVerified() && isOwner(existing().userId) && isValidReservation(incoming()) && 
+                       incoming().status == 'Pending' && existing().status == 'Pending' &&
+                       incoming().userId == existing().userId &&
+                       incoming().userName == existing().userName &&
+                       incoming().userEmail == existing().userEmail &&
+                       (!('userPhone' in incoming()) || (incoming().userPhone == existing().userPhone)) &&
+                       incoming().createdAt == existing().createdAt));
+      allow delete: if isValidId(reservationId) && (isAdmin() || (isVerified() && isOwner(existing().userId) && existing().status == 'Pending'));
     }
 
     match /portfolio/{itemId} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidPortfolio(incoming());
-      allow delete: if isAdmin();
+      allow read: if isValidId(itemId);
+      allow create, update: if isValidId(itemId) && isAdmin() && isValidPortfolio(incoming());
+      allow delete: if isValidId(itemId) && isAdmin();
     }
   }
 }

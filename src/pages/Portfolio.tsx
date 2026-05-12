@@ -11,45 +11,7 @@ import { db, storage, handleFirestoreError, OperationType } from '@/lib/firebase
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Camera, Loader2, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const initialPortfolioData = [
-  {
-    id: '1',
-    title: '한남동 더 힐 펜트하우스',
-    category: 'Residential' as SpaceType,
-    description: '모던하고 럭셔리한 분위기를 강조한 주거 공간 시공 사례입니다.',
-    beforeImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=1000&auto=format&fit=crop',
-    afterImage: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?q=80&w=1000&auto=format&fit=crop',
-    tags: ['Modern', 'High-end', 'Minimal']
-  },
-  {
-    id: '2',
-    title: '성수동 IT 밸리 오피스',
-    category: 'Office' as SpaceType,
-    description: '창의적인 업무를 위한 개방형 오피스 디자인입니다.',
-    beforeImage: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?q=80&w=1000&auto=format&fit=crop',
-    afterImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1000&auto=format&fit=crop',
-    tags: ['Industrial', 'Modern', 'Open Space']
-  },
-  {
-    id: '3',
-    title: '청담동 부티크 쇼룸',
-    category: 'Commercial' as SpaceType,
-    description: '브랜드 아이덴티티를 극대화한 상업 공간 인테리어입니다.',
-    beforeImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop',
-    afterImage: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?q=80&w=1000&auto=format&fit=crop',
-    tags: ['High-end', 'Minimal', 'Lighting']
-  },
-  {
-    id: '4',
-    title: '성북동 단독주택 리모델링',
-    category: 'Residential' as SpaceType,
-    description: '우드와 내추럴 톤을 활용한 따뜻한 감성의 주거 공간입니다.',
-    beforeImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=1000&auto=format&fit=crop',
-    afterImage: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop',
-    tags: ['Wood & Natural', 'Minimal', 'Cozy']
-  }
-];
+import { compressAndConvertToWebP } from '@/lib/imageUtils';
 
 export default function Portfolio() {
   const { isAdmin } = useAuth();
@@ -190,6 +152,7 @@ export default function Portfolio() {
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           referrerPolicy="no-referrer"
+                          loading="lazy"
                         />
                         
                         {/* Before Image on Hover */}
@@ -203,6 +166,7 @@ export default function Portfolio() {
                             alt="Before"
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
+                            loading="lazy"
                           />
                           <div className="absolute top-4 left-4 bg-black/60 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1">
                             Before
@@ -280,8 +244,17 @@ function PortfolioDialog({ item, onSave, children }: { item?: any, onSave: (item
     else setUploadingGallery(true);
 
     try {
-      const storageRef = ref(storage, `portfolio/${Date.now()}_${file.name}`);
-      const uploadResult = await uploadBytes(storageRef, file);
+      // Compress and convert to WebP
+      const maxWidth = type === 'gallery' ? 1280 : 1920;
+      const compressedBlob = await compressAndConvertToWebP(file, maxWidth, 0.85);
+      
+      // Change name to .webp
+      const fileName = file.name.split('.').slice(0, -1).join('.') + '.webp';
+      const storageRef = ref(storage, `portfolio/${Date.now()}_${fileName}`);
+      
+      const uploadResult = await uploadBytes(storageRef, compressedBlob, {
+        contentType: 'image/webp'
+      });
       console.log('Upload successful:', uploadResult.metadata.fullPath);
       
       const url = await getDownloadURL(storageRef);
@@ -516,6 +489,7 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
                   alt={item.title} 
                   className="w-full h-full object-contain transition-all duration-500"
                   referrerPolicy="no-referrer"
+                  loading="lazy"
                   key={activeImage}
                 />
                 
@@ -568,7 +542,7 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
                         onClick={() => setActiveImage(url)}
                         className={`aspect-square border-2 transition-all overflow-hidden bg-[#FDFCFB] relative group ${activeImage === url ? 'border-[#8B7E74]' : 'border-transparent opacity-40 hover:opacity-100'}`}
                       >
-                        <img src={url || undefined} alt={`Thumb ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={url || undefined} alt={`Thumb ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
                         {url === item.beforeImage && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="text-[8px] text-white font-bold uppercase">Before</span>

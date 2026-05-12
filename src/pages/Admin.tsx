@@ -7,10 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ReservationStatus } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/components/AuthProvider';
-import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType, storage } from '@/lib/firebase';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { convertUrlToWebP } from '@/lib/imageUtils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
+import { AlertCircle, CheckCircle2, RefreshCcw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const statusOptions: ReservationStatus[] = ['Pending', 'Consulting', 'Preparing', 'In Progress', 'Completed'];
 
@@ -97,9 +103,12 @@ export default function Admin() {
   return (
     <div className="py-20 bg-[#FDFCFB]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold tracking-tight text-[#1A1A1A] mb-2">Admin Dashboard</h1>
-          <p className="text-[#666666]">고객 예약 현황 및 시공 상태를 관리하세요.</p>
+        <div className="mb-12 flex flex-col md:flex-row md:items-start md:justify-between gap-6 bg-white p-6 border border-[#E5E1DA]">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-[#1A1A1A] mb-2">Admin Dashboard</h1>
+            <p className="text-[#666666]">고객 예약 현황 및 시공 상태를 관리하세요.</p>
+          </div>
+          <ImageOptimizationTool />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
@@ -279,6 +288,190 @@ export default function Admin() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ImageOptimizationTool() {
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [status, setStatus] = React.useState<string>('');
+  const [stats, setStats] = React.useState({ total: 0, optimized: 0, failed: 0 });
+
+  const optimizeImages = async (e: React.MouseEvent) => {
+    console.log('Optimize button clicked. Starting process...');
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsOptimizing(true);
+    setProgress(0);
+    setStats({ total: 0, optimized: 0, failed: 0 });
+    setStatus('포트폴리오 데이터를 불러오는 중...');
+
+    try {
+      console.log('Fetching portfolio collection...');
+      const snapshot = await getDocs(collection(db, 'portfolio'));
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const totalItems = items.length;
+      console.log(`Found ${totalItems} items in portfolio.`);
+      
+      if (totalItems === 0) {
+        setStatus('최적화할 항목이 없습니다.');
+        setTimeout(() => setIsOptimizing(false), 2000);
+        return;
+      }
+
+      let optimizedCount = 0;
+      let failedCount = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        const item: any = items[i];
+        const updates: any = {};
+        let needsUpdate = false;
+
+        setStatus(`${item.title} 처리 중...`);
+        console.log(`Processing item ${i + 1}: ${item.title}`);
+
+        const processImageUrl = async (url: string, prefix: string) => {
+          if (!url) return null;
+          
+          // Case 1: Unsplash - Just update parameters (Zero cost, No CORS issue)
+          if (url.includes('unsplash.com')) {
+            console.log(`Optimizing Unsplash URL: ${url}`);
+            const baseUrl = url.split('?')[0];
+            const params = new URLSearchParams(url.split('?')[1]);
+            params.set('auto', 'format');
+            params.set('fm', 'webp');
+            params.set('q', '80');
+            if (!params.has('w')) params.set('w', '1600');
+            optimizedCount++;
+            return `${baseUrl}?${params.toString()}`;
+          }
+
+          // Case 2: Already WebP
+          if (url.toLowerCase().includes('.webp')) {
+            console.log(`Skipping: Already WebP (${url})`);
+            return null;
+          }
+
+          // Case 3: Need conversion (Storage) - Use Proxy to bypass CORS
+          try {
+            console.log(`Converting to WebP via proxy: ${url}`);
+            const blob = await convertUrlToWebP(url, 1600, 0.82);
+            const fileName = `opt_${Date.now()}_${prefix}.webp`;
+            const storageRef = ref(storage, `portfolio/${item.id}/${fileName}`);
+            
+            await uploadBytes(storageRef, blob, { 
+              contentType: 'image/webp',
+              cacheControl: 'public,max-age=31536000'
+            });
+            const newUrl = await getDownloadURL(storageRef);
+            optimizedCount++;
+            return newUrl;
+          } catch (e) {
+            console.error(`Optimization failed for ${url}:`, e);
+            failedCount++;
+            return null;
+          }
+        };
+
+        // Process afterImage
+        if (item.afterImage) {
+          const newAfter = await processImageUrl(item.afterImage, 'after');
+          if (newAfter) {
+            updates.afterImage = newAfter;
+            needsUpdate = true;
+          }
+        }
+
+        // Process beforeImage
+        if (item.beforeImage) {
+          const newBefore = await processImageUrl(item.beforeImage, 'before');
+          if (newBefore) {
+            updates.beforeImage = newBefore;
+            needsUpdate = true;
+          }
+        }
+
+        // Process images array
+        if (Array.isArray(item.images)) {
+          const newImages = [...item.images];
+          let imagesChanged = false;
+          for (let j = 0; j < newImages.length; j++) {
+            const newUrl = await processImageUrl(newImages[j], `gallery_${j}`);
+            if (newUrl) {
+              newImages[j] = newUrl;
+              imagesChanged = true;
+              needsUpdate = true;
+            }
+          }
+          if (imagesChanged) updates.images = newImages;
+        }
+
+        if (needsUpdate) {
+          console.log(`Updating document ${item.id} with optimized URLs`);
+          await updateDoc(doc(db, 'portfolio', item.id), updates);
+        }
+
+        setProgress(Math.round(((i + 1) / totalItems) * 100));
+        setStats({ total: totalItems, optimized: optimizedCount, failed: failedCount });
+      }
+
+      setStatus('모든 작업이 완료되었습니다.');
+      setStats(prev => ({ ...prev, optimized: optimizedCount, failed: failedCount }));
+      
+      setTimeout(() => {
+        setIsOptimizing(false);
+        setStatus('');
+      }, 5000);
+    } catch (error) {
+      console.error('Optimization error:', error);
+      setStatus('오류가 발생했습니다.');
+      setTimeout(() => setIsOptimizing(false), 3000);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-3 min-w-[280px]">
+      {isOptimizing ? (
+        <div className="w-full space-y-3 bg-[#FDFCFB] p-4 border border-[#E5E1DA] shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#1A1A1A]">이미지 최적화 진행 중</span>
+            <span className="text-xs font-mono font-bold text-[#8B7E74]">{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-1.5 rounded-none" />
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] text-[#666666] truncate max-w-full">
+              {status}
+            </p>
+            <div className="flex gap-3 text-[9px] font-bold uppercase tracking-tighter text-[#8B7E74]">
+              <span>성공: {stats.optimized}</span>
+              <span>실패: {stats.failed}</span>
+              <span>전체: {stats.total}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-end gap-2">
+          <Tooltip>
+            <TooltipTrigger render={
+              <Button 
+                onClick={optimizeImages} 
+                variant="outline" 
+                size="sm"
+                className="h-10 px-6 rounded-none border-[#E5E1DA] text-[10px] font-bold uppercase tracking-[0.2em] transition-all hover:bg-[#1A1A1A] hover:text-white group flex items-center gap-3 shadow-sm bg-white"
+              />
+            } nativeButton={true}>
+              <RefreshCcw className="w-3.5 h-3.5 group-hover:animate-spin" />
+              Optimize Images
+            </TooltipTrigger>
+            <TooltipContent className="rounded-none text-[10px] border-[#E5E1DA] bg-white text-[#1A1A1A]">
+              기존 이미지들을 WebP 형식으로 일괄 변환하여 성능을 최적화합니다.
+            </TooltipContent>
+          </Tooltip>
+          <p className="text-[9px] text-[#8B7E74] font-medium italic">포트폴리오 이미지를 최신 파일로 갱신</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -40,10 +40,11 @@ export default function About() {
               className="relative aspect-[4/5] bg-[#E5E1DA]"
             >
               <img
-                src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2F1778481623050_KakaoTalk_20241021_105615934_05.jpg?alt=media&token=76e17054-d5d3-4ed6-af12-9aeb05987eef"
+                src="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0194545232.firebasestorage.app/o/portfolio%2FcP1ugLGiramX80PZHFjo%2Fopt_1778577654953_gallery_1.webp?alt=media&token=d5184193-7c58-4834-8e5a-e43fba791e6a"
                 alt="Studio"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
+                loading="lazy"
               />
             </motion.div>
           </div>
