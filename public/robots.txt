@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /
+
+User-agent: Yeti
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /mypage
+Disallow: /reservation
