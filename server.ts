@@ -55,15 +55,18 @@ async function startServer() {
     }
   });
 
-  // robots.txt explicit route for search engines
-  app.get("/robots.txt", (req, res) => {
-    res.type("text/plain");
-    res.status(200);
-    if (process.env.NODE_ENV !== "production") {
-      res.sendFile(path.join(__dirname, "public", "robots.txt"));
-    } else {
-      res.sendFile(path.join(process.cwd(), "dist", "robots.txt"));
-    }
+  // Static files in root directory (to ensure search engines and bots can find them)
+  const rootStaticFiles = [
+    "/robots.txt",
+    "/sitemap.xml",
+    "/favicon.ico",
+    "/naver102bdaa199f82f3e11bf529472710393.html"
+  ];
+
+  rootStaticFiles.forEach(file => {
+    app.get(file, (req, res) => {
+      res.sendFile(path.join(process.cwd(), file));
+    });
   });
 
   // Vite middleware for development
