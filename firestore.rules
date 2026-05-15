@@ -141,7 +141,10 @@ service cloud.firestore {
 
     match /reservations/{reservationId} {
       allow get: if isValidId(reservationId) && isVerified() && (request.auth.uid == existing().userId || isAdmin());
-      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (
+        (request.query.filter.field == 'userId' && request.query.filter.value == request.auth.uid) || 
+        isAdmin()
+      );
       allow create: if isValidId(reservationId) && isVerified() && isValidReservation(incoming()) && 
                     incoming().userId == request.auth.uid && 
                     incoming().status == 'Pending' &&

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, doc, setDoc, getDoc, collection, query, where, onSnapshot, addDoc, updateDoc, serverTimestamp, getDocFromServer, getDocs, terminate, clearIndexedDbPersistence, orderBy, limit } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, collection, query, where, onSnapshot, addDoc, updateDoc, serverTimestamp, getDocFromServer, getDocs, orderBy, limit } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -10,11 +10,13 @@ const filteredConfig = Object.fromEntries(
 
 const app = initializeApp(filteredConfig);
 export const auth = getAuth(app);
+
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache()
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 }, (filteredConfig as any).firestoreDatabaseId);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Error Handling Utility
 export enum OperationType {
@@ -72,82 +74,89 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   
-  // If the error is "Missing or insufficient permissions", we definitely want to throw 
-  // so the system can potentially notice it, but we should be careful not to crash 
-  // without reason. However, in this framework, throwing is often how we report to the user/system.
+  // Throw for critical errors (like permission denied) so the UI can report it
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test Connection
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. The client is offline.");
-    }
-  }
-}
-testConnection();
-
 // Auth Helpers
+let loginInProgress = false;
+
 export const signInWithGoogle = async () => {
+  if (loginInProgress) {
+    console.warn('signInWithGoogle: Login already in progress, ignoring duplicate call');
+    return null;
+  }
+
+  loginInProgress = true;
   try {
+    // Auth Guard: Force a clean state if a user is currently logged in,
+    // as iframe environment state management is flaky.
+    if (auth.currentUser) {
+        console.warn('Auth user detected before login attempt, reloading to ensure clean state');
+        window.location.reload();
+        return null;
+    }
+
+    console.log('signInWithGoogle: Opening popup');
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+    console.log('signInWithGoogle: Success:', user.email);
     
-    // Create/Update user profile in Firestore
-    const userRef = doc(db, 'users', user.uid);
-    let userSnap;
-    try {
-      userSnap = await getDoc(userRef);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
-    }
-    
-    const isAdmin = user.email === 'gjtnlfnl@gmail.com';
-    if (userSnap && !userSnap.exists()) {
+    // Background profile update
+    (async () => {
       try {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: isAdmin ? 'admin' : 'user',
-          createdAt: serverTimestamp()
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        const isAdmin = user.email === 'gjtnlfnl@gmail.com';
+        
+        if (!userSnap.exists()) {
+          const profileData: any = {
+            uid: user.uid,
+            email: user.email,
+            role: isAdmin ? 'admin' : 'user',
+            createdAt: serverTimestamp()
+          };
+          if (user.displayName) profileData.displayName = user.displayName;
+          if (user.photoURL) profileData.photoURL = user.photoURL;
+          await setDoc(userRef, profileData);
+        } else if (isAdmin && userSnap.data()?.role !== 'admin') {
+          await updateDoc(userRef, { role: 'admin' });
+        }
+      } catch (e) {
+        console.error('Non-blocking profile update error:', e);
       }
-    } else if (isAdmin && userSnap && userSnap.data().role !== 'admin') {
-      // Force update role to admin if it's the designated admin email but role is not admin
-      try {
-        await updateDoc(userRef, { role: 'admin' });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
-      }
-    }
+    })();
+
     return user;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('{"error"')) {
-      throw error; // Re-throw structured firestore error
+  } catch (error: any) {
+    // Expected user-driven cancellation
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.log('Login cancelled: User closed the login popup.');
+      return null;
     }
-    console.error('Login Error:', error);
+    
+    console.error('signInWithGoogle: Unexpected exception:', error);
+    
+    // If the auth SDK state is corrupted, force a reload to let the browser reset it
+    if (error.message?.includes('INTERNAL ASSERTION FAILED')) {
+        console.warn('Auth SDK state corrupted, reloading page...');
+        window.location.reload();
+        return null;
+    }
+
     throw error;
+  } finally {
+    loginInProgress = false;
   }
 };
 
 export const logout = async () => {
   try {
+    console.log('logout: Initiating logout');
     await signOut(auth);
-    // Use hard redirect to ensure all states are cleared correctly
-    window.location.href = '/';
+    sessionStorage.clear();
   } catch (error) {
-    console.error('Logout error:', error);
-    // Final fallback
-    try {
-      await signOut(auth);
-    } catch {}
-    window.location.href = '/';
+    console.error('logout error:', error);
   }
+  // Let the AuthProvider update, which triggers a route change in App.tsx
 };

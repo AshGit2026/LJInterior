@@ -11,22 +11,28 @@ export default function Home() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const q = query(
-      collection(db, 'portfolio'),
-      orderBy('createdAt', 'desc'),
-      limit(2)
-    );
-
+    const q = query(collection(db, 'portfolio'));
     let unsubscribe: (() => void) | undefined;
     
     try {
       unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setRecentPortfolio(data);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+        // Robust sorting handles missing or null createdAt
+        const sortedData = data.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
+          const timeB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+          return timeB - timeA;
+        });
+        setRecentPortfolio(sortedData.slice(0, 2));
         setLoading(false);
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        if (error.message?.includes('shutting down')) return;
         setLoading(false);
+        try {
+          handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        } catch (e) {
+          console.error('Error in error handler:', e);
+        }
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'portfolio');

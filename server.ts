@@ -66,7 +66,12 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", (req, res, next) => {
+      // Only serve index.html for non-asset requests
+      if (req.path.startsWith("/assets/") || req.path.includes(".")) {
+        return next();
+      }
+      console.log(`Serving index.html for request: ${req.path}`);
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

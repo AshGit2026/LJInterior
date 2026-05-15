@@ -43,6 +43,7 @@ export default function Admin() {
         setReservations(resData);
         setLoading(false);
       }, (error) => {
+        if (error.message?.includes('shutting down')) return;
         handleFirestoreError(error, OperationType.LIST, 'reservations');
         setLoading(false);
       });

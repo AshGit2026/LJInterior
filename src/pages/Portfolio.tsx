@@ -14,24 +14,38 @@ import { Camera, Loader2, X, Plus, ChevronLeft, ChevronRight } from 'lucide-reac
 import { compressAndConvertToWebP } from '@/lib/imageUtils';
 
 export default function Portfolio() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [portfolioData, setPortfolioData] = React.useState<any[]>([]);
   const [filter, setFilter] = React.useState<SpaceType | 'All'>('All');
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const q = query(collection(db, 'portfolio'), orderBy('createdAt', 'desc'));
+    // Fetch all without server-side ordering to ensure we get items without createdAt
+    const q = query(collection(db, 'portfolio'));
     let unsubscribe: (() => void) | undefined;
     
     try {
       unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPortfolioData(data);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+        // Sort in memory instead - handles cases where createdAt might be null temporarily
+        const sortedData = data.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
+          const timeB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+          return timeB - timeA;
+        });
+        setPortfolioData(sortedData);
         setLoading(false);
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        if (error.message?.includes('shutting down')) return;
+        console.error('Portfolio snapshot error:', error);
         setLoading(false);
+        try {
+          handleFirestoreError(error, OperationType.LIST, 'portfolio');
+        } catch (e) {
+          // Error handler might throw, but we already set loading false
+          console.error('Error in error handler:', e);
+        }
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'portfolio');
@@ -117,7 +131,7 @@ export default function Portfolio() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div key={user?.uid || 'logged-out'} className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <AnimatePresence mode="popLayout">
             {loading ? (
               <div className="col-span-full text-center py-20 text-[#666666]">로딩 중...</div>
@@ -161,8 +175,8 @@ export default function Portfolio() {
                           src={item.afterImage || undefined}
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          referrerPolicy="no-referrer"
                           loading="lazy"
+                          key={`after-${item.id}-${item.afterImage}`}
                         />
                         
                         {/* Before Image on Hover */}
@@ -175,8 +189,8 @@ export default function Portfolio() {
                             src={item.beforeImage || undefined}
                             alt="Before"
                             className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
                             loading="lazy"
+                            key={`before-${item.id}-${item.beforeImage}`}
                           />
                           <div className="absolute top-4 left-4 bg-black/60 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1">
                             Before
@@ -498,7 +512,6 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
                   src={activeImage || undefined} 
                   alt={item.title} 
                   className="w-full h-full object-contain transition-all duration-500"
-                  referrerPolicy="no-referrer"
                   loading="lazy"
                   key={activeImage}
                 />
@@ -552,7 +565,7 @@ function PortfolioDetail({ item, children }: { item: any, children: React.ReactN
                         onClick={() => setActiveImage(url)}
                         className={`aspect-square border-2 transition-all overflow-hidden bg-[#FDFCFB] relative group ${activeImage === url ? 'border-[#8B7E74]' : 'border-transparent opacity-40 hover:opacity-100'}`}
                       >
-                        <img src={url || undefined} alt={`Thumb ${index}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                        <img src={url || undefined} alt={`Thumb ${index}`} className="w-full h-full object-cover" loading="lazy" />
                         {url === item.beforeImage && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="text-[8px] text-white font-bold uppercase">Before</span>
