@@ -192,7 +192,10 @@ export default function Reservation() {
             {/* Space Type */}
             <div className="space-y-4">
               <Label className="text-sm font-bold uppercase tracking-widest text-[#8B7E74]">공간 유형</Label>
-              <Select onValueChange={(val) => setFormData({ ...formData, spaceType: val as SpaceType })}>
+              <Select 
+                value={formData.spaceType} 
+                onValueChange={(val) => setFormData({ ...formData, spaceType: val as SpaceType })}
+              >
                 <SelectTrigger className="rounded-none border-[#E5E1DA] h-12">
                   <SelectValue placeholder="공간 유형을 선택해주세요" />
                 </SelectTrigger>

@@ -1,4 +1,4 @@
-User-agent: Yeti
+User-agent: *
 Allow: /
 Allow: /favicon.ico
 Allow: /assets/
@@ -8,13 +8,13 @@ Disallow: /mypage/
 Disallow: /reservation/
 Disallow: /api/
 
-User-agent: *
+User-agent: Yeti
 Allow: /
+Allow: /favicon.ico
 Disallow: /admin/
 Disallow: /login
 Disallow: /mypage/
 Disallow: /reservation/
 Disallow: /api/
 
-# Sitemap
 Sitemap: https://www.ljinterior.com/sitemap.xml

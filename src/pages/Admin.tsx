@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/components/AuthProvider';
 import { db, handleFirestoreError, OperationType, storage } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDocs, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { convertUrlToWebP } from '@/lib/imageUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +24,9 @@ export default function Admin() {
   const { isAdmin } = useAuth();
   const [reservations, setReservations] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [filterStatus, setFilterStatus] = React.useState<ReservationStatus | 'All'>('All');
+  const [dateFrom, setDateFrom] = React.useState<string>('');
+  const [dateTo, setDateTo] = React.useState<string>('');
 
   React.useEffect(() => {
     if (!isAdmin) return;
@@ -55,7 +58,13 @@ export default function Admin() {
 
   const handleStatusChange = async (id: string, newStatus: ReservationStatus) => {
     try {
-      await updateDoc(doc(db, 'reservations', id), { status: newStatus });
+      await updateDoc(doc(db, 'reservations', id), { 
+        status: newStatus,
+        statusHistory: arrayUnion({
+          status: newStatus,
+          updatedAt: new Date() // Use client date for simplicity in UI if needed, or serverTimestamp but then we'd need to fetch again
+        })
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `reservations/${id}`);
     }
@@ -100,6 +109,7 @@ export default function Admin() {
   const stats = {
     new: reservations.filter(r => r.status === 'Pending').length,
     consulting: reservations.filter(r => r.status === 'Consulting').length,
+    preparing: reservations.filter(r => r.status === 'Preparing').length,
     inProgress: reservations.filter(r => r.status === 'In Progress').length,
     completedMonth: reservations.filter(r => {
       if (!r.createdAt?.toDate) return false;
@@ -108,6 +118,32 @@ export default function Admin() {
       return r.status === 'Completed' && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length,
   };
+
+  const filteredReservations = reservations.filter(res => {
+    const statusMatch = filterStatus === 'All' || res.status === filterStatus;
+    
+    let dateMatch = true;
+    if (res.createdAt?.toDate) {
+      const resDate = res.createdAt.toDate();
+      resDate.setHours(0, 0, 0, 0);
+
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        if (resDate < fromDate) dateMatch = false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (resDate > toDate) dateMatch = false;
+      }
+    } else {
+      // If no createdAt, filter it out if date range is set
+      if (dateFrom || dateTo) dateMatch = false;
+    }
+
+    return statusMatch && dateMatch;
+  });
 
   return (
     <div className="py-20 bg-[#FDFCFB]">
@@ -120,7 +156,56 @@ export default function Admin() {
           <ImageOptimizationTool />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-white p-6 border border-[#E5E1DA]">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[#8B7E74]">처리 상태 필터</label>
+            <Select value={filterStatus} onValueChange={(val) => setFilterStatus(val as any)}>
+              <SelectTrigger className="rounded-none border-[#E5E1DA] h-10">
+                <SelectValue placeholder="모든 상태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">전체 보기</SelectItem>
+                {statusOptions.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[#8B7E74]">조회 시작일</label>
+            <input 
+              type="date" 
+              value={dateFrom} 
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full h-10 border border-[#E5E1DA] px-3 text-sm focus:outline-none focus:border-[#1A1A1A]"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[#8B7E74]">조회 종료일</label>
+            <input 
+              type="date" 
+              value={dateTo} 
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full h-10 border border-[#E5E1DA] px-3 text-sm focus:outline-none focus:border-[#1A1A1A]"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button 
+              variant="outline" 
+              className="w-full h-10 rounded-none border-[#E5E1DA] text-[10px] font-bold uppercase tracking-widest"
+              onClick={() => {
+                setFilterStatus('All');
+                setDateFrom('');
+                setDateTo('');
+              }}
+            >
+              필터 초기화
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 lg:gap-8 mb-12">
           <Card className="rounded-none border-[#E5E1DA] shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold uppercase tracking-widest text-[#8B7E74]">신규 예약</CardTitle>
@@ -135,6 +220,14 @@ export default function Admin() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{stats.consulting}건</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-none border-[#E5E1DA] shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-[#8B7E74]">공사 준비 중</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{stats.preparing}건</p>
             </CardContent>
           </Card>
           <Card className="rounded-none border-[#E5E1DA] shadow-sm">
@@ -178,12 +271,12 @@ export default function Admin() {
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-10">로딩 중...</TableCell>
                       </TableRow>
-                    ) : reservations.length === 0 ? (
+                    ) : filteredReservations.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10">예약 내역이 없습니다.</TableCell>
+                        <TableCell colSpan={8} className="text-center py-10">검색 결과가 없습니다.</TableCell>
                       </TableRow>
                     ) : (
-                      reservations.map((res) => (
+                      filteredReservations.map((res) => (
                         <TableRow key={res.id} className="hover:bg-[#FDFCFB]">
                           <TableCell>{res.createdAt?.toDate ? res.createdAt.toDate().toLocaleDateString() : '-'}</TableCell>
                           <TableCell className="font-mono text-xs text-[#8B7E74]">{res.id}</TableCell>
@@ -193,7 +286,7 @@ export default function Admin() {
                           <TableCell>{res.userPhone}</TableCell>
                           <TableCell>
                             <Select 
-                              defaultValue={res.status} 
+                              value={res.status} 
                               onValueChange={(val) => handleStatusChange(res.id, val as ReservationStatus)}
                             >
                               <SelectTrigger className="w-[140px] h-9 rounded-none border-[#E5E1DA] text-xs font-bold uppercase tracking-wider">
@@ -242,6 +335,25 @@ export default function Admin() {
                                   <p className="text-[#4A4A4A] bg-[#FDFCFB] p-4 border border-[#E5E1DA] leading-relaxed">
                                     {res.additionalRequests || '없음'}
                                   </p>
+                                </div>
+                                <div className="space-y-4 mt-6">
+                                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8B7E74]">상태 변경 이력</p>
+                                  <div className="bg-[#FDFCFB] border border-[#E5E1DA] p-4 space-y-3 max-h-[150px] overflow-y-auto">
+                                    {res.statusHistory && res.statusHistory.length > 0 ? (
+                                      res.statusHistory.map((history: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between items-center text-xs pb-2 border-b border-[#E5E1DA] last:border-0 last:pb-0">
+                                          <Badge variant="outline" className="rounded-none font-bold text-[10px] px-2 py-0 h-5">
+                                            {history.status}
+                                          </Badge>
+                                          <span className="text-[#8B7E74]">
+                                            {history.updatedAt?.toDate ? history.updatedAt.toDate().toLocaleString() : new Date(history.updatedAt).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-xs text-[#8B7E74] text-center py-2">이력이 없습니다.</p>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="space-y-4 mt-6">
                                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8B7E74]">관리자 노트</p>

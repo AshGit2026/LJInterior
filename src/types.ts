@@ -4,6 +4,11 @@ export type StyleType = 'Modern' | 'Minimal' | 'Wood & Natural' | 'Industrial' |
 
 export type ReservationStatus = 'Pending' | 'Consulting' | 'Preparing' | 'In Progress' | 'Completed';
 
+export interface StatusHistoryItem {
+  status: ReservationStatus;
+  updatedAt: any;
+}
+
 export interface Reservation {
   id: string;
   userId: string;
@@ -18,8 +23,9 @@ export interface Reservation {
   preferredDate: string;
   additionalRequests: string;
   status: ReservationStatus;
+  statusHistory?: StatusHistoryItem[];
   adminNotes: string;
-  createdAt: string;
+  createdAt: any;
 }
 
 export interface PortfolioItem {

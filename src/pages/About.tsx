@@ -32,6 +32,14 @@ export default function About() {
                   <p className="text-sm text-[#8B7E74] font-bold uppercase tracking-widest">Interior License</p>
                 </div>
               </div>
+              
+              <div className="p-6 bg-[#FDFCFB] border-l-4 border-[#8B7E74]">
+                <p className="text-[#1A1A1A] font-bold mb-2">법인 실내건축공사업 면허 보유 (제 화성23-나-21호)</p>
+                <p className="text-sm text-[#666666] leading-relaxed">
+                  (주)엘제이인테리어는 까다로운 자본금 기준과 전문 기술 인력 보유 조건을 충족한 정식 면허 업체입니다. 
+                  단순한 인테리어 사무실이 아닌, 법적 책임과 사후 관리를 보장하는 건실한 법인 기업입니다.
+                </p>
+              </div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -47,6 +55,70 @@ export default function About() {
                 loading="lazy"
               />
             </motion.div>
+          </div>
+        </div>
+      </section>
+      
+      {/* License Importance Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-[#1A1A1A] p-12 md:p-20 text-white overflow-hidden relative">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              <div>
+                <h2 className="text-[#D4C7B0] font-bold text-sm uppercase tracking-widest mb-6">Security & Professionalism</h2>
+                <h3 className="text-2xl md:text-4xl font-bold leading-tight mb-8">
+                  왜 법인 면허 업체여야 하는가?
+                </h3>
+                <p className="text-white/70 text-base leading-relaxed mb-10">
+                  인테리어 공사는 큰 비용이 들어가는 인생의 중요한 이벤트입니다. 하지만 많은 분들이 '무면허 동네 업체'에 맡겼다가 
+                  공사 중단, 하자 보수 거부, 심지어는 자금 횡령 등의 피해를 보고 계십니다.
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D4C7B0] mt-2.5 flex-shrink-0" />
+                    <p className="text-white/80 text-sm"><span className="text-[#D4C7B0] font-bold">자본금 및 기술인력 검증:</span> 국가에서 정한 기준을 통과한 업체만이 면허를 유지할 수 있습니다.</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D4C7B0] mt-2.5 flex-shrink-0" />
+                    <p className="text-white/80 text-sm"><span className="text-[#D4C7B0] font-bold">법적 보호와 안전:</span> 전문건축물 시공 시 법적 보호를 받을 수 있으며, 1,500만원 이상의 공사는 실내건축면허 업체만이 합법적으로 가능합니다.</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D4C7B0] mt-2.5 flex-shrink-0" />
+                    <p className="text-white/80 text-sm"><span className="text-[#D4C7B0] font-bold">철저한 사후 관리:</span> 개인 사업자와 달리 법인으로서 끝까지 책임을 집니다. 하자이행보증보험 발행이 가능하여 고객님의 권리를 보호합니다.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="bg-white/5 backdrop-blur-sm p-6 border border-white/10 rounded-xl">
+                    <p className="text-2xl font-bold text-[#D4C7B0] mb-1">0%</p>
+                    <p className="text-[10px] uppercase tracking-widest text-white/40">Default Rate</p>
+                    <p className="mt-3 text-xs font-medium text-white/80">단 한 건의 낙오 없는 성실 시공</p>
+                  </div>
+                  <div className="bg-white/5 backdrop-blur-sm p-6 border border-white/10 rounded-xl">
+                    <p className="text-2xl font-bold text-[#D4C7B0] mb-1">100%</p>
+                    <p className="text-[10px] uppercase tracking-widest text-white/40">Responsibility</p>
+                    <p className="mt-3 text-xs font-medium text-white/80">법적 책임을 다하는 기업 윤리</p>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="bg-[#D4C7B0] p-8 rounded-xl text-[#1A1A1A] h-full flex flex-col justify-between">
+                    <div>
+                      <p className="font-bold text-sm mb-6 text-[#1A1A1A]/60 uppercase tracking-tighter">Our Promise</p>
+                      <p className="text-2xl font-bold leading-tight">
+                        "고객님의 소중한 자산, 우리가 끝까지 지킵니다."
+                      </p>
+                    </div>
+                    <div className="mt-8 pt-8 border-t border-[#1A1A1A]/10 italic text-xs">
+                      - (주)엘제이인테리어 임직원 일동
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-1/3 h-full bg-[#D4C7B0]/5 -skew-x-12 translate-x-1/2" />
           </div>
         </div>
       </section>
