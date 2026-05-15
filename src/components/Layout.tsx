@@ -26,9 +26,10 @@ export default function Layout({ children }: LayoutProps) {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Fallback
+      window.location.href = '/';
     }
   };
 

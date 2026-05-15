@@ -140,15 +140,14 @@ export const signInWithGoogle = async () => {
 export const logout = async () => {
   try {
     await signOut(auth);
-    // Terminate and clear cache for security as requested
-    await terminate(db);
-    await clearIndexedDbPersistence(db);
-    // Reload to re-initialize everything fresh
+    // Use hard redirect to ensure all states are cleared correctly
     window.location.href = '/';
   } catch (error) {
     console.error('Logout error:', error);
-    // Fallback if full clear fails
-    await signOut(auth);
+    // Final fallback
+    try {
+      await signOut(auth);
+    } catch {}
     window.location.href = '/';
   }
 };
