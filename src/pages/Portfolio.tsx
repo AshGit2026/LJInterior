@@ -21,6 +21,17 @@ export default function Portfolio() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    // Naver 'view_content' conversion tracking
+    if ((window as any).wcs) {
+      if(!(window as any).wcs_add) (window as any).wcs_add = {};
+      (window as any).wcs_add['wa'] = 's_2573ad17a446';
+      var _conv = {} as any;
+      _conv.type = 'view_content';
+      (window as any).wcs.trans(_conv);
+    }
+  }, []);
+
+  React.useEffect(() => {
     // Fetch all without server-side ordering to ensure we get items without createdAt
     const q = query(collection(db, 'portfolio'));
     let unsubscribe: (() => void) | undefined;

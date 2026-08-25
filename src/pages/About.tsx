@@ -2,6 +2,17 @@ import React from 'react';
 import { motion } from 'motion/react';
 
 export default function About() {
+  React.useEffect(() => {
+    // Naver 'view_content' conversion tracking
+    if ((window as any).wcs) {
+      if(!(window as any).wcs_add) (window as any).wcs_add = {};
+      (window as any).wcs_add['wa'] = 's_2573ad17a446';
+      var _conv = {} as any;
+      _conv.type = 'view_content';
+      (window as any).wcs.trans(_conv);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col">
       {/* Brand Intro */}

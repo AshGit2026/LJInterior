@@ -161,6 +161,16 @@ export default function Reservation() {
       }
 
       alert('상담 예약이 신청되었습니다. 담당자가 곧 연락드리겠습니다.');
+      
+      // Naver 'schedule' conversion tracking
+      if ((window as any).wcs) {
+        if(!(window as any).wcs_add) (window as any).wcs_add = {};
+        (window as any).wcs_add['wa'] = 's_2573ad17a446';
+        var _conv = {} as any;
+        _conv.type = 'schedule';
+        (window as any).wcs.trans(_conv);
+      }
+
       navigate('/mypage');
     } catch (error) {
       if (error instanceof Error && error.message.includes('{"error"')) {

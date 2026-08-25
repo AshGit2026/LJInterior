@@ -31,6 +31,21 @@ export default function Login() {
         setLoading(false);
         return;
       }
+
+      // Check if new user
+      const creationTime = new Date(user.metadata.creationTime!).getTime();
+      const lastSignInTime = new Date(user.metadata.lastSignInTime!).getTime();
+      if (Math.abs(creationTime - lastSignInTime) < 5000) {
+        console.log('Login: New user detected, firing Naver signup conversion');
+        if ((window as any).wcs) {
+          if(!(window as any).wcs_add) (window as any).wcs_add = {};
+          (window as any).wcs_add['wa'] = 's_2573ad17a446';
+          var _conv = {} as any;
+          _conv.type = 'sign_up';
+          (window as any).wcs.trans(_conv);
+        }
+      }
+      
       console.log('Login: Login success for:', user.email);
     } catch (error: any) {
       console.error('Login: handleGoogleLogin error:', error);
