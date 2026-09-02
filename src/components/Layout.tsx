@@ -192,9 +192,10 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             <div>
               <h4 className="text-sm font-bold uppercase tracking-widest mb-6">Contact</h4>
-              <ul className="space-y-4 text-[#A0A0A0]">
-                <li>T. 031-292-4589</li>
-                <li>F. 031-292-4588</li>
+              <ul className="space-y-2 text-[#A0A0A0] text-sm">
+                <li>(주)엘제이인테리어 | 대표자: 정여헌</li>
+                <li>사업자번호: 446-81-03099</li>
+                <li>T. 031-292-4589 | F. 031-292-4588</li>
                 <li>E. lj_interior@naver.com</li>
                 <li>A. 경기도 화성시 효행구 봉담읍 분천길95번길 47-4</li>
               </ul>
