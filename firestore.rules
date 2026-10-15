@@ -126,11 +126,12 @@ service cloud.firestore {
 
     function isValidAccessLog(data) {
       return data.keys().hasAll(['timestamp', 'url']) &&
-             data.keys().size() >= 2 && data.keys().size() <= 4 &&
+             data.keys().size() >= 2 && data.keys().size() <= 5 &&
              data.timestamp is timestamp &&
              data.url is string && data.url.size() > 0 && data.url.size() < 2048 &&
              (!('referrer' in data) || (data.referrer is string && data.referrer.size() < 2048)) &&
-             (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() < 2048));
+             (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() < 2048)) &&
+             (!('ip' in data) || (data.ip is string && data.ip.size() < 128));
     }
 
     // ===============================================================
@@ -177,7 +178,7 @@ service cloud.firestore {
     }
 
     match /access_logs/{logId} {
-      allow create: if isValidId(logId) && isValidAccessLog(incoming()) && incoming().timestamp == request.time;
+      allow create: if isValidId(logId) && isValidAccessLog(incoming());
       allow read, list, update, delete: if isAdmin();
     }
   }
