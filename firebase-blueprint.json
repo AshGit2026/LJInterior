@@ -50,6 +50,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "category", "afterImage"]
+    },
+    "AccessLog": {
+      "title": "Access Log",
+      "description": "Log of user access to the application",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "url": { "type": "string" },
+        "referrer": { "type": "string" },
+        "userAgent": { "type": "string" }
+      },
+      "required": ["timestamp", "url"]
     }
   },
   "firestore": {
@@ -64,6 +76,10 @@
     "/portfolio/{itemId}": {
       "schema": "PortfolioItem",
       "description": "Portfolio work cases"
+    },
+    "/access_logs/{logId}": {
+      "schema": "AccessLog",
+      "description": "Access logs"
     }
   }
 }

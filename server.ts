@@ -1,12 +1,63 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { db } from "./src/lib/firebase.server";
+import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Image Proxy to bypass CORS during optimization
+  app.use(express.json());
+  
+  const blockedIps = new Set<string>();
+
+  async function refreshBlockedIps() {
+    try {
+      const snapshot = await getDocs(collection(db, "blocked_ips"));
+      blockedIps.clear();
+      snapshot.forEach((doc) => blockedIps.add(doc.id));
+      console.log("Blocked IPs refreshed:", blockedIps.size);
+    } catch (e) {
+      console.error("Error refreshing blocked IPs:", e);
+    }
+  }
+
+  // Refresh every 5 minutes
+  setInterval(refreshBlockedIps, 5 * 60 * 1000);
+  refreshBlockedIps();
+
+  // Middleware for blocking
+  app.use((req, res, next) => {
+    // For local testing, ensure we handle IP correctly (often behind proxy)
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || "";
+    if (ip && blockedIps.has(ip)) {
+      console.log(`Blocked access from IP: ${ip}`);
+      return res.status(403).send("Access Denied");
+    }
+    next();
+  });
+
+  app.post("/api/log-access", async (req, res) => {
+    const { url, referrer, userAgent } = req.body;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || "";
+    
+    try {
+      await addDoc(collection(db, 'access_logs'), {
+        timestamp: serverTimestamp(),
+        url,
+        referrer,
+        userAgent,
+        ip
+      });
+      res.status(200).send("Logged");
+    } catch (e) {
+      console.error("Error logging access:", e);
+      res.status(500).send("Error logging");
+    }
+  });
+
+  // Image Proxy...
   app.get("/api/proxy", async (req, res) => {
     const imageUrl = req.query.url as string;
     if (!imageUrl) {

@@ -124,6 +124,15 @@ service cloud.firestore {
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
+    function isValidAccessLog(data) {
+      return data.keys().hasAll(['timestamp', 'url']) &&
+             data.keys().size() >= 2 && data.keys().size() <= 4 &&
+             data.timestamp is timestamp &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 2048 &&
+             (!('referrer' in data) || (data.referrer is string && data.referrer.size() < 2048)) &&
+             (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() < 2048));
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -165,6 +174,11 @@ service cloud.firestore {
       allow list: if true;
       allow create, update: if isValidId(itemId) && isAdmin() && isValidPortfolio(incoming());
       allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    match /access_logs/{logId} {
+      allow create: if isValidId(logId) && isValidAccessLog(incoming()) && incoming().timestamp == request.time;
+      allow read, list, update, delete: if isAdmin();
     }
   }
 }

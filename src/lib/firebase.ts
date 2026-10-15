@@ -160,3 +160,35 @@ export const logout = async () => {
   }
   // Let the AuthProvider update, which triggers a route change in App.tsx
 };
+
+export const logAccess = async (url: string) => {
+  try {
+    await fetch('/api/log-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, referrer: document.referrer, userAgent: navigator.userAgent })
+    });
+  } catch (error) {
+    console.error('Error logging access:', error);
+  }
+};
+
+export const getBlockedIps = async (): Promise<string[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'blocked_ips'));
+    return querySnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error fetching blocked IPs:', error);
+    return [];
+  }
+};
+
+export const addBlockedIp = async (ip: string) => {
+  try {
+    await setDoc(doc(db, 'blocked_ips', ip), {
+      blockedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error blocking IP:', error);
+  }
+};

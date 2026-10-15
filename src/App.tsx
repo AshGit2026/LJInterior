@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { AuthProvider } from './components/AuthProvider';
 import { ProtectedRoute } from './components/ProtectedRoute'; // Import ProtectedRoute
@@ -16,8 +16,19 @@ import Reservation from './pages/Reservation';
 import Login from './pages/Login';
 import MyPage from './pages/MyPage';
 import Admin from './pages/Admin';
+import AdminLogs from './pages/AdminLogs';
+import { useEffect } from 'react';
+import { logAccess } from './lib/firebase';
 
 import { TooltipProvider } from './components/ui/tooltip';
+
+function LogTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    logAccess(location.pathname + location.search);
+  }, [location]);
+  return null;
+}
 
 export default function App() {
   const siteUrl = import.meta.env.VITE_SITE_URL || 'https://ljinterior.com';
@@ -30,6 +41,7 @@ export default function App() {
       <TooltipProvider>
         <AuthProvider>
           <Router>
+            <LogTracker />
             <ScrollToTop />
             <Layout>
               <Routes>
@@ -41,6 +53,7 @@ export default function App() {
                 {/* Wrapped protected routes */}
                 <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                <Route path="/admin/logs" element={<ProtectedRoute><AdminLogs /></ProtectedRoute>} />
               </Routes>
             </Layout>
           </Router>
