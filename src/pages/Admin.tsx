@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -152,7 +153,12 @@ export default function Admin() {
         <div className="mb-12 flex flex-col md:flex-row md:items-start md:justify-between gap-6 bg-white p-6 border border-[#E5E1DA]">
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-[#1A1A1A] mb-2">Admin Dashboard</h1>
-            <p className="text-[#666666]">고객 예약 현황 및 시공 상태를 관리하세요.</p>
+            <div className="flex items-center gap-4">
+              <p className="text-[#666666]">고객 예약 현황 및 시공 상태를 관리하세요.</p>
+              <Link to="/admin/logs" className={buttonVariants({ variant: "outline", size: "sm" }) + " rounded-none"}>
+                View Access Logs
+              </Link>
+            </div>
           </div>
           <ImageOptimizationTool />
         </div>
