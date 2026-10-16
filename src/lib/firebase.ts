@@ -161,29 +161,90 @@ export const logout = async () => {
   // Let the AuthProvider update, which triggers a route change in App.tsx
 };
 
+// Helper to get or generate persistent visitor ID for abuse tracking
+export const getVisitorId = (): string => {
+  try {
+    let vid = localStorage.getItem('visitor_id');
+    if (!vid) {
+      vid = 'v_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+      localStorage.setItem('visitor_id', vid);
+    }
+    return vid;
+  } catch {
+    return 'unknown_visitor';
+  }
+};
+
+let cachedClientIp: string | null = null;
+export const fetchClientIp = async (): Promise<string> => {
+  if (cachedClientIp) return cachedClientIp;
+  try {
+    const res = await fetch('/api/get-client-ip');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ip) {
+        cachedClientIp = data.ip;
+        return data.ip;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch client IP:', e);
+  }
+  return '';
+};
+
 export const logAccess = async (url: string) => {
   try {
-    const response = await fetch('/api/log-access', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, referrer: document.referrer, userAgent: navigator.userAgent })
-    });
-    
-    if (!response.ok) {
-        throw new Error('Server logging failed');
-    }
-  } catch (error) {
-    console.warn('Server logging failed, falling back to client-side:', error);
+    const visitorId = getVisitorId();
+    const ip = await fetchClientIp();
+
+    // Naver Search Ad / CPC parameters detection
+    let isNaverAd = false;
+    let naverKeyword = '';
+    let naverAdId = '';
+    let hasNaPm = false;
+
     try {
-        await addDoc(collection(db, 'access_logs'), {
-          timestamp: serverTimestamp(),
-          url,
-          referrer: document.referrer,
-          userAgent: navigator.userAgent
-        });
-    } catch (firestoreError) {
-        console.error('Error logging access to Firestore:', firestoreError);
+      const fullUrl = new URL(url, window.location.origin);
+      const sp = fullUrl.searchParams;
+      hasNaPm = sp.has('NaPm');
+      naverKeyword = sp.get('n_keyword') || sp.get('n_query') || '';
+      naverAdId = sp.get('n_ad') || '';
+      const utmSource = (sp.get('utm_source') || '').toLowerCase();
+      const referrer = (document.referrer || '').toLowerCase();
+
+      if (
+        hasNaPm ||
+        Boolean(naverKeyword) ||
+        Boolean(naverAdId) ||
+        sp.has('n_media') ||
+        (utmSource === 'naver' && (sp.get('utm_medium') || '').includes('cpc')) ||
+        referrer.includes('ad.search.naver.com')
+      ) {
+        isNaverAd = true;
+      }
+    } catch {
+      // Fallback string matching if URL parsing fails
+      const lower = url.toLowerCase();
+      if (lower.includes('napm=') || lower.includes('n_keyword=') || lower.includes('n_ad=')) {
+        isNaverAd = true;
+      }
     }
+
+    await addDoc(collection(db, 'access_logs'), {
+      timestamp: serverTimestamp(),
+      url,
+      referrer: document.referrer || '',
+      userAgent: navigator.userAgent || '',
+      visitorId,
+      ip: ip || 'Unknown',
+      isNaverAd,
+      naverKeyword: naverKeyword || undefined,
+      naverAdId: naverAdId || undefined,
+      hasNaPm
+    });
+  } catch (firestoreError) {
+    console.warn('Notice: Log access error:', firestoreError);
   }
 };
 
@@ -202,6 +263,12 @@ export const addBlockedIp = async (ip: string) => {
     await setDoc(doc(db, 'blocked_ips', ip), {
       blockedAt: serverTimestamp(),
     });
+    // Sync with server in-memory blocklist
+    fetch('/api/block-ip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip })
+    }).catch(() => {});
   } catch (error) {
     console.error('Error blocking IP:', error);
   }

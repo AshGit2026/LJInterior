@@ -1,74 +1,70 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import { FieldValue } from "firebase-admin/firestore";
-import { db } from "./src/lib/firebase.server";
-import firebaseConfig from "./firebase-applet-config.json";
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.set("trust proxy", true);
   app.use(express.json());
   
   const blockedIps = new Set<string>();
 
-  async function refreshBlockedIps() {
-    try {
-      const snapshot = await db.collection("blocked_ips").get();
-      blockedIps.clear();
-      snapshot.forEach((doc) => blockedIps.add(doc.id));
-      console.log("Blocked IPs refreshed:", blockedIps.size);
-    } catch (e) {
-      console.error("Error refreshing blocked IPs:", {
-        message: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-        projectId: firebaseConfig.projectId,
-        databaseId: (firebaseConfig as any).firestoreDatabaseId,
-      });
+  // Helper to extract real client IP behind Cloud Run / reverse proxies
+  const getClientIp = (req: express.Request): string => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') {
+      return forwarded.split(',')[0].trim();
+    } else if (Array.isArray(forwarded) && forwarded.length > 0) {
+      return forwarded[0].split(',')[0].trim();
     }
-  }
-
-  // Refresh every 5 minutes
-  console.log("Setting interval for refreshing blocked IPs...");
-  setInterval(refreshBlockedIps, 5 * 60 * 1000);
-  console.log("Calling refreshBlockedIps for the first time...");
-  refreshBlockedIps();
-  console.log("refreshBlockedIps called.");
+    return req.ip || req.socket.remoteAddress || "";
+  };
 
   // Middleware for blocking
   app.use((req, res, next) => {
-    // For local testing, ensure we handle IP correctly (often behind proxy)
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || "";
+    const ip = getClientIp(req);
     if (ip && blockedIps.has(ip)) {
-      console.log(`Blocked access from IP: ${ip}`);
-      return res.status(403).send("Access Denied");
+      console.log(`[Blocked Request] Denied access to IP: ${ip}`);
+      return res.status(403).send("Access Denied: Your IP has been blocked by administrator.");
     }
     next();
   });
 
-  app.post("/api/log-access", async (req, res) => {
-    const { url, referrer, userAgent } = req.body;
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || "";
-    
-    try {
-      await db.collection('access_logs').add({
-        timestamp: FieldValue.serverTimestamp(),
-        url,
-        referrer,
-        userAgent,
-        ip
-      });
-      res.status(200).send("Logged");
-    } catch (e) {
-      console.error("Error logging access:", {
-        message: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-        projectId: firebaseConfig.projectId,
-        databaseId: (firebaseConfig as any).firestoreDatabaseId,
-      });
-      res.status(500).send("Error logging");
+  // Dedicated endpoint to get client's public IP
+  app.get("/api/get-client-ip", (req, res) => {
+    const ip = getClientIp(req);
+    res.json({ ip });
+  });
+
+  // Endpoints to manage server in-memory blocklist
+  app.post("/api/block-ip", (req, res) => {
+    const { ip } = req.body;
+    if (ip && typeof ip === "string") {
+      blockedIps.add(ip);
+      console.log(`IP added to blocklist: ${ip} (Total: ${blockedIps.size})`);
+      return res.json({ success: true, count: blockedIps.size });
     }
+    res.status(400).json({ error: "Invalid IP" });
+  });
+
+  app.post("/api/unblock-ip", (req, res) => {
+    const { ip } = req.body;
+    if (ip && typeof ip === "string") {
+      blockedIps.delete(ip);
+      console.log(`IP removed from blocklist: ${ip} (Total: ${blockedIps.size})`);
+      return res.json({ success: true, count: blockedIps.size });
+    }
+    res.status(400).json({ error: "Invalid IP" });
+  });
+
+  app.get("/api/blocked-ips", (req, res) => {
+    res.json({ blockedIps: Array.from(blockedIps) });
+  });
+
+  // Backward compatibility endpoint for access logging
+  app.post("/api/log-access", (req, res) => {
+    res.status(200).json({ status: "ok" });
   });
 
   // Image Proxy...

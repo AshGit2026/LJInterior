@@ -17,10 +17,52 @@ import Login from './pages/Login';
 import MyPage from './pages/MyPage';
 import Admin from './pages/Admin';
 import AdminLogs from './pages/AdminLogs';
-import { useEffect } from 'react';
-import { logAccess } from './lib/firebase';
+import React, { useEffect, useState } from 'react';
+import { logAccess, fetchClientIp, getBlockedIps } from './lib/firebase';
 
 import { TooltipProvider } from './components/ui/tooltip';
+
+function BlockedGuard({ children }: { children: React.ReactNode }) {
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  useEffect(() => {
+    async function checkBlock() {
+      try {
+        const [ip, blockedList] = await Promise.all([
+          fetchClientIp(),
+          getBlockedIps()
+        ]);
+        if (ip && blockedList.includes(ip)) {
+          setIsBlocked(true);
+        }
+      } catch (err) {
+        console.warn('Block check error:', err);
+      }
+    }
+    checkBlock();
+  }, []);
+
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-white p-8 rounded-xl shadow-lg border border-red-100">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+            !
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">접근이 제한되었습니다</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            비정상적이거나 반복적인 접근 감지로 인해 해당 네트워크(IP)의 접속이 차단되었습니다.
+          </p>
+          <p className="text-xs text-gray-400">
+            오류인 경우 관리자(대표전화 또는 이메일)로 문의해 주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function LogTracker() {
   const location = useLocation();
@@ -41,21 +83,23 @@ export default function App() {
       <TooltipProvider>
         <AuthProvider>
           <Router>
-            <LogTracker />
-            <ScrollToTop />
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/reservation" element={<Reservation />} />
-                <Route path="/login" element={<Login />} />
-                {/* Wrapped protected routes */}
-                <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-                <Route path="/admin/logs" element={<ProtectedRoute><AdminLogs /></ProtectedRoute>} />
-              </Routes>
-            </Layout>
+            <BlockedGuard>
+              <LogTracker />
+              <ScrollToTop />
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/portfolio" element={<Portfolio />} />
+                  <Route path="/reservation" element={<Reservation />} />
+                  <Route path="/login" element={<Login />} />
+                  {/* Wrapped protected routes */}
+                  <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                  <Route path="/admin/logs" element={<ProtectedRoute><AdminLogs /></ProtectedRoute>} />
+                </Routes>
+              </Layout>
+            </BlockedGuard>
           </Router>
         </AuthProvider>
       </TooltipProvider>
