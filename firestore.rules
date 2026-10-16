@@ -178,8 +178,14 @@ service cloud.firestore {
     }
 
     match /access_logs/{logId} {
-      allow create: if isValidId(logId) && isValidAccessLog(incoming());
-      allow read, list, update, delete: if isAdmin();
+      allow create: if true;
+      allow read, list: if isAdmin();
     }
+
+    match /blocked_ips/{ip} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
   }
 }

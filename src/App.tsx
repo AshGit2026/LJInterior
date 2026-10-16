@@ -31,7 +31,7 @@ function LogTracker() {
 }
 
 export default function App() {
-  const siteUrl = import.meta.env.VITE_SITE_URL || 'https://ljinterior.com';
+  const siteUrl = (import.meta as any).env.VITE_SITE_URL || 'https://ljinterior.com';
 
   return (
     <HelmetProvider>

@@ -163,13 +163,27 @@ export const logout = async () => {
 
 export const logAccess = async (url: string) => {
   try {
-    await fetch('/api/log-access', {
+    const response = await fetch('/api/log-access', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, referrer: document.referrer, userAgent: navigator.userAgent })
     });
+    
+    if (!response.ok) {
+        throw new Error('Server logging failed');
+    }
   } catch (error) {
-    console.error('Error logging access:', error);
+    console.warn('Server logging failed, falling back to client-side:', error);
+    try {
+        await addDoc(collection(db, 'access_logs'), {
+          timestamp: serverTimestamp(),
+          url,
+          referrer: document.referrer,
+          userAgent: navigator.userAgent
+        });
+    } catch (firestoreError) {
+        console.error('Error logging access to Firestore:', firestoreError);
+    }
   }
 };
 

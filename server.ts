@@ -1,8 +1,9 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./src/lib/firebase.server";
-import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import firebaseConfig from "./firebase-applet-config.json";
 
 async function startServer() {
   const app = express();
@@ -14,18 +15,26 @@ async function startServer() {
 
   async function refreshBlockedIps() {
     try {
-      const snapshot = await getDocs(collection(db, "blocked_ips"));
+      const snapshot = await db.collection("blocked_ips").get();
       blockedIps.clear();
       snapshot.forEach((doc) => blockedIps.add(doc.id));
       console.log("Blocked IPs refreshed:", blockedIps.size);
     } catch (e) {
-      console.error("Error refreshing blocked IPs:", e);
+      console.error("Error refreshing blocked IPs:", {
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+        projectId: firebaseConfig.projectId,
+        databaseId: (firebaseConfig as any).firestoreDatabaseId,
+      });
     }
   }
 
   // Refresh every 5 minutes
+  console.log("Setting interval for refreshing blocked IPs...");
   setInterval(refreshBlockedIps, 5 * 60 * 1000);
+  console.log("Calling refreshBlockedIps for the first time...");
   refreshBlockedIps();
+  console.log("refreshBlockedIps called.");
 
   // Middleware for blocking
   app.use((req, res, next) => {
@@ -43,8 +52,8 @@ async function startServer() {
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || "";
     
     try {
-      await addDoc(collection(db, 'access_logs'), {
-        timestamp: serverTimestamp(),
+      await db.collection('access_logs').add({
+        timestamp: FieldValue.serverTimestamp(),
         url,
         referrer,
         userAgent,
@@ -52,7 +61,12 @@ async function startServer() {
       });
       res.status(200).send("Logged");
     } catch (e) {
-      console.error("Error logging access:", e);
+      console.error("Error logging access:", {
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+        projectId: firebaseConfig.projectId,
+        databaseId: (firebaseConfig as any).firestoreDatabaseId,
+      });
       res.status(500).send("Error logging");
     }
   });

@@ -1,10 +1,13 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const filteredConfig = Object.fromEntries(
-  Object.entries(firebaseConfig).filter(([_, v]) => v !== "")
-);
+console.log("Firebase config project ID:", firebaseConfig.projectId);
+if (!getApps().length) {
+  initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+}
 
-const app = initializeApp(filteredConfig);
-export const db = initializeFirestore(app, {}, (filteredConfig as any).firestoreDatabaseId);
+export const db = getFirestore(getApps()[0], (firebaseConfig as any).firestoreDatabaseId);
+console.log("Firebase Admin initialized");

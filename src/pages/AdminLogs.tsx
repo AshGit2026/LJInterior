@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit, where } from 'firebase/firestore';
 import { db, addBlockedIp } from '../lib/firebase';
 
 interface AccessLog {
@@ -30,36 +30,46 @@ export const AdminLogs = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const q = query(collection(db, 'access_logs'), orderBy('timestamp', 'desc'), limit(500));
-        const querySnapshot = await getDocs(q);
-        const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AccessLog[];
-        setLogs(logsData);
-
-        // Simple frequency analysis
-        const counts: Record<string, number> = {};
-        logsData.forEach(log => {
-          if (log.userAgent) {
-            counts[log.userAgent] = (counts[log.userAgent] || 0) + 1;
-          }
-        });
-        
-        // Define suspicious as > 5 hits in last 100
-        const suspicious = Object.fromEntries(
-          Object.entries(counts).filter(([_, count]) => count > 5)
-        );
-        setSuspiciousUserAgents(suspicious);
-
-      } catch (error) {
-        console.error('Error fetching logs:', error);
-      } finally {
-        setLoading(false);
+  const fetchLogs = async (start?: string, end?: string) => {
+    try {
+      let q = query(collection(db, 'access_logs'), orderBy('timestamp', 'desc'));
+      
+      if (start && end) {
+          const startDateObj = new Date(start);
+          const endDateObj = new Date(end);
+          q = query(q, where('timestamp', '>=', startDateObj), where('timestamp', '<=', endDateObj));
+      } else {
+          q = query(q, limit(500));
       }
-    };
-    fetchLogs();
-  }, []);
+
+      const querySnapshot = await getDocs(q);
+      const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AccessLog[];
+      setLogs(logsData);
+
+      // Simple frequency analysis
+      const counts: Record<string, number> = {};
+      logsData.forEach(log => {
+        if (log.userAgent) {
+          counts[log.userAgent] = (counts[log.userAgent] || 0) + 1;
+        }
+      });
+      
+      // Define suspicious as > 5 hits in last 100
+      const suspicious = Object.fromEntries(
+        Object.entries(counts).filter(([_, count]) => count > 5)
+      );
+      setSuspiciousUserAgents(suspicious);
+
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs(dateFilter === 'range' ? startDate : undefined, dateFilter === 'range' ? endDate : undefined);
+  }, [dateFilter, startDate, endDate]);
 
   if (loading) return <div className="p-4">Loading logs...</div>;
 
