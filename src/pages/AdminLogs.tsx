@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, getDocs, limit, where } from 'firebase/firestore';
-import { db, addBlockedIp, getBlockedIps } from '../lib/firebase';
+import { db, addBlockedIp, getBlockedIps, fetchClientIp, logAccess } from '../lib/firebase';
 
 interface AccessLog {
   id: string;
@@ -75,6 +75,35 @@ export const AdminLogs = () => {
   const [endDate, setEndDate] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showNaverGuide, setShowNaverGuide] = useState(false);
+  const [currentDetectedIp, setCurrentDetectedIp] = useState<string>('감지 중...');
+  const [isLoggingTest, setIsLoggingTest] = useState(false);
+
+  useEffect(() => {
+    fetchClientIp(true).then(ip => setCurrentDetectedIp(ip || 'Unknown'));
+  }, []);
+
+  const handleTestLog = async () => {
+    setIsLoggingTest(true);
+    try {
+      const ip = await fetchClientIp(true);
+      setCurrentDetectedIp(ip || 'Unknown');
+      const docId = await logAccess('/admin/logs?test_ping=' + Date.now());
+      
+      // Reset filters so the new log is 100% visible
+      setTypeFilter('all');
+      setDateFilter('all');
+      
+      // Brief delay to ensure Firestore serverTimestamp is committed before query
+      await new Promise(r => setTimeout(r, 600));
+      await fetchLogs();
+      showNotification(`현재 IP [${ip}]로 테스트 로그(ID: ${docId.slice(0, 6)}...)가 정상 저장되었습니다!`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      showNotification(`테스트 로그 저장 실패: ${err?.message || '오류 발생'}`, 'error');
+    } finally {
+      setIsLoggingTest(false);
+    }
+  };
 
   const showNotification = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
     setNotification({ message, type });
@@ -330,6 +359,48 @@ export const AdminLogs = () => {
           <button onClick={() => setNotification(null)} className="font-bold ml-2 text-lg leading-none">×</button>
         </div>
       )}
+
+      {/* Real-time IP Diagnostic Banner */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs tracking-wider">
+            IP
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-gray-700">현재 관리자 브라우저 감지 IP:</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                currentDetectedIp && currentDetectedIp !== 'Unknown' && currentDetectedIp !== '감지 중...'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                  : 'bg-amber-50 text-amber-700 border border-amber-300'
+              }`}>
+                {currentDetectedIp}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              사용자가 사이트에 방문할 때 이 공인 IP가 실시간 기록됩니다. (4중 글로벌망 초고속 병렬 감지 엔진 적용)
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setCurrentDetectedIp('새로고침 중...');
+              fetchClientIp(true).then(ip => setCurrentDetectedIp(ip || 'Unknown'));
+            }}
+            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            IP 재조회
+          </button>
+          <button
+            onClick={handleTestLog}
+            disabled={isLoggingTest}
+            className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 disabled:opacity-60"
+          >
+            {isLoggingTest ? '기록 중...' : '🧪 내 IP로 즉시 테스트 기록 생성'}
+          </button>
+        </div>
+      </div>
 
       {/* Naver Ads Click Fraud Monitoring Card */}
       <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200 rounded-xl p-5 mb-6 shadow-sm">

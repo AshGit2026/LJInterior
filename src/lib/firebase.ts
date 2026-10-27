@@ -176,21 +176,129 @@ export const getVisitorId = (): string => {
 };
 
 let cachedClientIp: string | null = null;
-export const fetchClientIp = async (): Promise<string> => {
-  if (cachedClientIp) return cachedClientIp;
-  try {
-    const res = await fetch('/api/get-client-ip');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.ip) {
-        cachedClientIp = data.ip;
-        return data.ip;
-      }
+
+// Individual fetcher functions with timeouts
+const fetchFromInternal = async (): Promise<string> => {
+  const res = await fetch('/api/get-client-ip', { signal: AbortSignal.timeout(1500) });
+  const ct = res.headers.get('content-type') || '';
+  if (res.ok && ct.includes('application/json')) {
+    const data = await res.json();
+    if (data?.ip && typeof data.ip === 'string') {
+      const clean = data.ip.trim();
+      if (clean && clean !== 'Unknown') return clean;
     }
-  } catch (e) {
-    console.warn('Failed to fetch client IP:', e);
   }
-  return '';
+  throw new Error('Internal endpoint did not return valid IP');
+};
+
+const fetchFromBigDataCloud = async (): Promise<string> => {
+  const res = await fetch('https://api.bigdatacloud.net/data/client-ip', { signal: AbortSignal.timeout(2000) });
+  if (res.ok) {
+    const data = await res.json();
+    const ip = (data.ipString || data.ip || '').trim();
+    if (ip && ip !== 'Unknown') return ip;
+  }
+  throw new Error('BigDataCloud failed');
+};
+
+const fetchFromIpify64 = async (): Promise<string> => {
+  const res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(2000) });
+  if (res.ok) {
+    const data = await res.json();
+    const ip = (data.ip || '').trim();
+    if (ip && ip !== 'Unknown') return ip;
+  }
+  throw new Error('Ipify64 failed');
+};
+
+const fetchFromIpWhoIs = async (): Promise<string> => {
+  const res = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(2000) });
+  if (res.ok) {
+    const data = await res.json();
+    const ip = (data.ip || '').trim();
+    if (ip && ip !== 'Unknown') return ip;
+  }
+  throw new Error('IpWhoIs failed');
+};
+
+const fetchFromIpify = async (): Promise<string> => {
+  const res = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(2000) });
+  if (res.ok) {
+    const data = await res.json();
+    const ip = (data.ip || '').trim();
+    if (ip && ip !== 'Unknown') return ip;
+  }
+  throw new Error('Ipify failed');
+};
+
+export const fetchClientIp = async (forceRefresh = false): Promise<string> => {
+  if (!forceRefresh && cachedClientIp && cachedClientIp !== 'Unknown') {
+    return cachedClientIp;
+  }
+
+  // Check browser cache (sessionStorage / localStorage)
+  if (!forceRefresh) {
+    try {
+      if (typeof window !== 'undefined') {
+        const sessionIp = window.sessionStorage?.getItem('client_ip');
+        if (sessionIp && sessionIp !== 'Unknown') {
+          cachedClientIp = sessionIp;
+          return sessionIp;
+        }
+        const localIp = window.localStorage?.getItem('client_ip');
+        if (localIp && localIp !== 'Unknown') {
+          cachedClientIp = localIp;
+          return localIp;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  const rememberIp = (ip: string): string => {
+    const cleanIp = ip.trim();
+    cachedClientIp = cleanIp;
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage?.setItem('client_ip', cleanIp);
+        window.localStorage?.setItem('client_ip', cleanIp);
+      }
+    } catch {}
+    return cleanIp;
+  };
+
+  // Parallel race: query all services concurrently, the fastest response wins in ~50-100ms
+  try {
+    const fastestIp = await Promise.any([
+      fetchFromInternal(),
+      fetchFromBigDataCloud(),
+      fetchFromIpify64(),
+      fetchFromIpWhoIs(),
+      fetchFromIpify()
+    ]);
+    if (fastestIp && fastestIp !== 'Unknown') {
+      return rememberIp(fastestIp);
+    }
+  } catch (err) {
+    console.warn('Fast parallel IP lookup failed, trying sequential backup:', err);
+  }
+
+  // Backup sequential attempt if parallel race failed
+  try {
+    const res = await fetch('https://api.bigdatacloud.net/data/client-ip', { signal: AbortSignal.timeout(2500) });
+    const data = await res.json();
+    const ip = (data.ipString || data.ip || '').trim();
+    if (ip) return rememberIp(ip);
+  } catch {}
+
+  try {
+    const res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(2500) });
+    const data = await res.json();
+    if (data?.ip) return rememberIp(data.ip);
+  } catch {}
+
+  return 'Unknown';
 };
 
 export const logAccess = async (url: string) => {
@@ -205,13 +313,14 @@ export const logAccess = async (url: string) => {
     let hasNaPm = false;
 
     try {
-      const fullUrl = new URL(url, window.location.origin);
+      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://localhost';
+      const fullUrl = new URL(url, origin);
       const sp = fullUrl.searchParams;
       hasNaPm = sp.has('NaPm');
-      naverKeyword = sp.get('n_keyword') || sp.get('n_query') || '';
-      naverAdId = sp.get('n_ad') || '';
+      naverKeyword = (sp.get('n_keyword') || sp.get('n_query') || '').trim();
+      naverAdId = (sp.get('n_ad') || '').trim();
       const utmSource = (sp.get('utm_source') || '').toLowerCase();
-      const referrer = (document.referrer || '').toLowerCase();
+      const referrer = (typeof document !== 'undefined' ? document.referrer || '' : '').toLowerCase();
 
       if (
         hasNaPm ||
@@ -231,20 +340,29 @@ export const logAccess = async (url: string) => {
       }
     }
 
-    await addDoc(collection(db, 'access_logs'), {
+    const docData: Record<string, any> = {
       timestamp: serverTimestamp(),
-      url,
-      referrer: document.referrer || '',
-      userAgent: navigator.userAgent || '',
+      url: url || '/',
+      referrer: (typeof document !== 'undefined' ? document.referrer : '') || '',
+      userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '',
       visitorId,
-      ip: ip || 'Unknown',
-      isNaverAd,
-      naverKeyword: naverKeyword || undefined,
-      naverAdId: naverAdId || undefined,
-      hasNaPm
-    });
+      ip: (ip && ip.trim()) ? ip.trim() : 'Unknown',
+      isNaverAd: Boolean(isNaverAd),
+      hasNaPm: Boolean(hasNaPm)
+    };
+
+    if (naverKeyword) {
+      docData.naverKeyword = naverKeyword;
+    }
+    if (naverAdId) {
+      docData.naverAdId = naverAdId;
+    }
+
+    const docRef = await addDoc(collection(db, 'access_logs'), docData);
+    return docRef.id;
   } catch (firestoreError) {
-    console.warn('Notice: Log access error:', firestoreError);
+    console.error('Notice: Log access error:', firestoreError);
+    throw firestoreError;
   }
 };
 

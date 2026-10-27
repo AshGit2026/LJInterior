@@ -126,12 +126,17 @@ service cloud.firestore {
 
     function isValidAccessLog(data) {
       return data.keys().hasAll(['timestamp', 'url']) &&
-             data.keys().size() >= 2 && data.keys().size() <= 5 &&
+             data.keys().size() >= 2 && data.keys().size() <= 12 &&
              data.timestamp is timestamp &&
              data.url is string && data.url.size() > 0 && data.url.size() < 2048 &&
              (!('referrer' in data) || (data.referrer is string && data.referrer.size() < 2048)) &&
              (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() < 2048)) &&
-             (!('ip' in data) || (data.ip is string && data.ip.size() < 128));
+             (!('visitorId' in data) || (data.visitorId is string && data.visitorId.size() < 128)) &&
+             (!('ip' in data) || (data.ip is string && data.ip.size() < 128)) &&
+             (!('isNaverAd' in data) || data.isNaverAd is bool) &&
+             (!('hasNaPm' in data) || data.hasNaPm is bool) &&
+             (!('naverKeyword' in data) || (data.naverKeyword is string && data.naverKeyword.size() < 256)) &&
+             (!('naverAdId' in data) || (data.naverAdId is string && data.naverAdId.size() < 128));
     }
 
     // ===============================================================
